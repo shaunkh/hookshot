@@ -1,3 +1,10 @@
 .direnv
 .env
 
+# Deno / Fresh / Vite
+node_modules/
+_fresh/
+vite.config.ts.timestamp-*
+
+# Local SQLite database
+data/
