@@ -1,5 +1,5 @@
 /**
- * Tiny per-User pub/sub for live dashboard updates (SSE). In-process only — the
+ * Tiny per-User pub/sub for live dashboard updates (SSE). In-process only - the
  * app runs as a single process, so a Map of listener sets is sufficient.
  */
 export interface SignalEvent {

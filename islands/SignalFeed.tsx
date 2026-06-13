@@ -49,9 +49,9 @@ export default function SignalFeed() {
           {signals.value.map((s) => (
             <tr key={s.id}>
               <td class="mono">{new Date(s.receivedAt).toLocaleTimeString()}</td>
-              <td>{s.action ?? "—"}</td>
-              <td>{s.symbol ?? "—"}</td>
-              <td>{s.side === "B" ? "long" : s.side === "S" ? "short" : "—"}</td>
+              <td>{s.action ?? "-"}</td>
+              <td>{s.symbol ?? "-"}</td>
+              <td>{s.side === "B" ? "long" : s.side === "S" ? "short" : "-"}</td>
               <td>
                 <span class={`badge ${s.status}`}>{s.status}</span>
               </td>
@@ -62,7 +62,7 @@ export default function SignalFeed() {
           {signals.value.length === 0
             ? (
               <tr>
-                <td colSpan={7} class="muted">No signals yet — POST one to a webhook.</td>
+                <td colSpan={7} class="muted">No signals yet - POST one to a webhook.</td>
               </tr>
             )
             : null}

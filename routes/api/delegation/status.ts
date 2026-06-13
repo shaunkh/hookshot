@@ -22,7 +22,7 @@ export const handler = define.handlers({
       if (live !== usdcApproved) setUsdcApproved(user.id, live, null);
       usdcApproved = live;
     } catch {
-      // network hiccup — fall back to the cached value
+      // network hiccup - fall back to the cached value
     }
 
     return ctx.json({

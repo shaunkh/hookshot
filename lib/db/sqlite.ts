@@ -21,7 +21,7 @@ export function getDb(): DatabaseSync {
       try {
         Deno.mkdirSync(dir, { recursive: true });
       } catch {
-        // already exists / not permitted — surfaced later by the open
+        // already exists / not permitted - surfaced later by the open
       }
     }
   }

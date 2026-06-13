@@ -11,7 +11,7 @@ import {
 } from "./pricing.ts";
 
 Deno.test("decimal math has no float drift", () => {
-  assertEquals(mulStr("0.1", "0.2", 18), "0.02"); // 0.1*0.2 — float would give 0.020000…4
+  assertEquals(mulStr("0.1", "0.2", 18), "0.02"); // 0.1*0.2 - float would give 0.020000…4
   assertEquals(mulDivStr("1.5", "65000", "10", 6), "9750"); // size*price/leverage
   assertEquals(divStr("1", "3", 6), "0.333333");
   assertEquals(subStr("1.2", "1.0", 18), "0.2");

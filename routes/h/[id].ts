@@ -1,5 +1,5 @@
 /**
- * Webhook ingest — the only public, session-less endpoint. Triple gate:
+ * Webhook ingest - the only public, session-less endpoint. Triple gate:
  *   1. URL id exists & active        (else 404)
  *   2. body `secret` matches          (else 401)
  *   3. source IP allowed              (else 403, recorded as rejected)
@@ -33,7 +33,7 @@ function sourceIpOf(ctx: { info: Deno.ServeHandlerInfo; req: Request }): string 
   return resolveClientIp(remote, xff, getConfig().trustedProxyIps);
 }
 
-/** Re-serialize the body with the secret stripped — what we persist/display. */
+/** Re-serialize the body with the secret stripped - what we persist/display. */
 function redact(parsed: Record<string, unknown>): string {
   const { secret: _omit, ...rest } = parsed;
   return JSON.stringify(rest);
@@ -44,7 +44,7 @@ export const handler = define.handlers({
     const webhook = getActiveWebhook(ctx.params.id);
     if (!webhook) return ctx.json({ error: "not found" }, { status: 404 });
 
-    // Size cap (before reading/hashing) — bounds memory + DB writes.
+    // Size cap (before reading/hashing) - bounds memory + DB writes.
     const declared = Number(ctx.req.headers.get("content-length") ?? "0");
     if (declared > MAX_BODY_BYTES) return ctx.json({ error: "body too large" }, { status: 413 });
     const raw = await ctx.req.text();

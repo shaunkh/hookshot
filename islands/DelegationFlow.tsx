@@ -56,7 +56,7 @@ export default function DelegationFlow({ traderAddr }: Props) {
 
   return (
     <div class="panel">
-      <h3>Delegation {ready.value ? "✅ ready" : "— required to trade"}</h3>
+      <h3>Delegation {ready.value ? "✅ ready" : "- required to trade"}</h3>
       <p class="muted">
         Authorize the trade-only delegate to place trades for you. It can open and close positions
         but <strong>cannot withdraw funds</strong>.

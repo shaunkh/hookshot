@@ -141,7 +141,7 @@ export default function WebhookManager() {
                   <p class="muted">
                     {w.allowMode === "allow_all"
                       ? "Accepts any source IP (gated by URL + secret only)."
-                      : "Allowed source IPs — an empty list denies all (fail closed):"}
+                      : "Allowed source IPs - an empty list denies all (fail closed):"}
                   </p>
                   <ul>
                     {(det.ips ?? []).map((ip) => (

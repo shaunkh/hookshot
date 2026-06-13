@@ -14,7 +14,7 @@ export interface RetryOptions {
   baseDelayMs?: number;
   /** Upper bound on any single backoff delay in ms. Default 30_000. */
   maxDelayMs?: number;
-  /** Called before each retry — useful for logging. */
+  /** Called before each retry - useful for logging. */
   onRetry?: (info: { attempt: number; delayMs: number; error: unknown }) => void;
 }
 

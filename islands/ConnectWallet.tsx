@@ -16,7 +16,7 @@ export default function ConnectWallet() {
     if (!IS_BROWSER) return;
     const eth = provider();
     if (!eth) {
-      status.value = "No Ethereum wallet found — install MetaMask or similar.";
+      status.value = "No Ethereum wallet found - install MetaMask or similar.";
       return;
     }
     busy.value = true;

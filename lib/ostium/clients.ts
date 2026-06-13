@@ -65,7 +65,7 @@ export function getBuildClient(trader: string): Promise<OstiumClient> {
 
 let _safe: Promise<Address> | null = null;
 /**
- * The Delegate's Safe address — what every User must `setDelegate(...)` to.
+ * The Delegate's Safe address - what every User must `setDelegate(...)` to.
  * Deterministic from the delegate key, so it's identical for all Users. The
  * constructor needs a `traderAddress`, so we pass the delegate EOA as a
  * placeholder; the returned Safe is a function of the delegate key alone.

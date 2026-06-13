@@ -8,13 +8,13 @@ export default define.page(function Home(ctx) {
       <h1>Ostium Webhook Trader</h1>
       <p class="muted">
         Trade Ostium from any external tool (TradingView, bots, scripts) by POSTing JSON signals to
-        a webhook URL. Your keys never touch the server — trades execute via a trade-only delegate
+        a webhook URL. Your keys never touch the server - trades execute via a trade-only delegate
         that cannot withdraw funds.
       </p>
       {user
         ? (
           <p>
-            Signed in as <code>{user.trader_addr}</code> —{" "}
+            Signed in as <code>{user.trader_addr}</code> -{" "}
             <a href="/dashboard">Go to your dashboard →</a>
           </p>
         )

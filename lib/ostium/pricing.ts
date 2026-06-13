@@ -49,7 +49,7 @@ export function openCollateral(
   }
 }
 
-/** Position notional (USD) — used for the MIN_OPEN_SIZE_USD bound check. */
+/** Position notional (USD) - used for the MIN_OPEN_SIZE_USD bound check. */
 export function openNotional(
   size: string,
   unit: SizeUnit,

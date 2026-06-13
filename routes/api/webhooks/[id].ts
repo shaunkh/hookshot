@@ -11,7 +11,7 @@ import {
 import type { AllowMode } from "@/lib/types.ts";
 
 export const handler = define.handlers({
-  // Full details incl. the (decrypted) secret — used by the Body Helper. Owner only.
+  // Full details incl. the (decrypted) secret - used by the Body Helper. Owner only.
   async GET(ctx) {
     const user = ctx.state.user;
     if (!user) return ctx.json({ error: "unauthorized" }, { status: 401 });

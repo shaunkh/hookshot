@@ -1,5 +1,5 @@
 /**
- * Sign-In With Ethereum (EIP-4361) — server side, verified with viem alone (no
+ * Sign-In With Ethereum (EIP-4361) - server side, verified with viem alone (no
  * separate `siwe` package). The server builds the canonical message (so it owns
  * the nonce + fields); the client signs it; we recover the signer and re-check
  * the fields. Nonce consumption is done by the route via repo.consumeNonce.

@@ -13,7 +13,7 @@ export function setJobHandler(h: JobHandler): void {
   handler = h;
 }
 
-/** Current backlog depth — ingest uses this to shed load (429) before accepting. */
+/** Current backlog depth - ingest uses this to shed load (429) before accepting. */
 export function queueDepth(): number {
   return queue.length;
 }

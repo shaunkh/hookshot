@@ -1,13 +1,50 @@
+/*
+ * Ostium-matched design system.
+ * Tokens sourced from the Ostium design system (get_design_* MCP):
+ * bg #141414, text #F5F5F5, brand orange #FF5A19, long/green #14DB7F,
+ * short/red #FF2741, warning #FFE548. Geist Sans; 4px spacing grid;
+ * radii rounded=6 / roundedLarge=16 / roundedFull=100.
+ */
+@import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap");
+
 :root {
-  --bg: #0b0e11;
-  --panel: #151a21;
-  --border: #232b36;
-  --fg: #e6edf3;
-  --muted: #8b97a7;
-  --accent: #4cc38a;
-  --danger: #f0616d;
-  --warn: #e3b341;
-  --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* Backgrounds & borders */
+  --bkg: #141414;
+  --elevated: rgba(245, 245, 245, 0.05); /* elevatedBkg = whiteT5 */
+  --border: rgba(245, 245, 245, 0.08);
+  --border-strong: rgba(245, 245, 245, 0.12);
+
+  /* Text */
+  --text: #f5f5f5;
+  --text-dim: rgba(245, 245, 245, 0.7);
+  --text-vdim: rgba(245, 245, 245, 0.5);
+
+  /* Semantic */
+  --positive: #14db7f; /* _green */
+  --negative: #ff2741; /* _red */
+  --warning: #ffe548; /* _yellow */
+
+  /* Brand */
+  --orange: #ff5a19; /* _ostiumOrange - important CTA */
+  --orange-press: #b94518; /* _ostiumOrange35 */
+  --orange-link: #fd7945; /* _ostiumOrange60 - legible on dark */
+
+  /* Controls */
+  --btn-bkg: #2b2b2b; /* _grey10 */
+  --btn-bkg-press: #414141; /* _grey20 */
+  --input-bkg: #1f1f1f; /* _grey5 */
+
+  /* Tags */
+  --tag-bkg: rgba(245, 245, 245, 0.1);
+  --tag-positive-bkg: #145034; /* _green15 */
+  --tag-negative-bkg: #5b1a22; /* _red15 */
+  --tag-warning-bkg: #5b5324; /* _yellow15 */
+
+  --radius: 6px;
+  --radius-lg: 16px;
+  --radius-full: 100px;
+  --mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --sans: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 * {
@@ -16,14 +53,44 @@
 
 body {
   margin: 0;
-  background: var(--bg);
-  color: var(--fg);
-  font-family: system-ui, -apple-system, sans-serif;
-  line-height: 1.5;
+  background: var(--bkg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 22px;
+  -webkit-font-smoothing: antialiased;
 }
 
 a {
-  color: var(--accent);
+  color: var(--orange-link);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+h1 {
+  font-size: 24px;
+  line-height: 30px;
+  font-weight: 600;
+  margin: 0 0 16px;
+}
+h2 {
+  font-size: 20px;
+  line-height: 26px;
+  font-weight: 600;
+}
+h3 {
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 600;
+  margin: 0 0 8px;
+}
+h4 {
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: 600;
+  margin: 16px 0 8px;
 }
 
 .container {
@@ -33,9 +100,9 @@ a {
 }
 
 .panel {
-  background: var(--panel);
+  background: var(--elevated);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   padding: 16px 20px;
   margin-bottom: 16px;
 }
@@ -47,58 +114,102 @@ a {
   flex-wrap: wrap;
 }
 
+/* Buttons - default is the important/brand (orange) CTA. */
 button,
 .btn {
-  background: var(--accent);
-  color: #07140d;
+  background: var(--orange);
+  color: #141414;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius);
   padding: 8px 14px;
+  font-family: inherit;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
+  transition: background 0.12s ease;
+}
+button:hover {
+  background: var(--orange-press);
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 button.secondary {
-  background: transparent;
-  color: var(--fg);
-  border: 1px solid var(--border);
+  background: var(--btn-bkg);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+}
+button.secondary:hover {
+  background: var(--btn-bkg-press);
 }
 
 button.danger {
-  background: var(--danger);
-  color: #1a0508;
+  background: #e8253d; /* _red45 (btnShort) */
+  color: var(--text);
+}
+button.danger:hover {
+  background: #b92134; /* _red35 */
 }
 
 input,
 select {
-  background: #0e1318;
-  color: var(--fg);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  background: var(--input-bkg);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
   padding: 8px 10px;
   font-family: inherit;
+  font-size: 14px;
+}
+input:focus,
+select:focus {
+  outline: none;
+  border-color: var(--orange);
+}
+input::placeholder {
+  color: var(--text-vdim);
 }
 
 code,
 pre,
 .mono {
   font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
 }
-
+code {
+  color: var(--orange-link);
+}
 pre {
-  background: #0e1318;
+  background: var(--input-bkg);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius);
   padding: 12px;
   overflow-x: auto;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 18px;
+}
+pre code {
+  color: inherit;
 }
 
 table {
   width: 100%;
   border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
 }
-
-th,
+th {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-vdim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
 td {
   text-align: left;
   padding: 8px 10px;
@@ -107,31 +218,31 @@ td {
 }
 
 .muted {
-  color: var(--muted);
+  color: var(--text-dim);
 }
 
+/* Tags / status badges (Ostium "tag": rounded 6px, subtle tinted bg). */
 .badge {
   display: inline-block;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius);
   font-size: 12px;
   font-weight: 600;
+  background: var(--tag-bkg);
+  color: rgba(245, 245, 245, 0.9);
 }
-
 .badge.filled {
-  background: rgba(76, 195, 138, 0.18);
-  color: var(--accent);
+  background: var(--tag-positive-bkg);
+  color: var(--positive);
 }
-
 .badge.failed,
 .badge.rejected {
-  background: rgba(240, 97, 109, 0.18);
-  color: var(--danger);
+  background: var(--tag-negative-bkg);
+  color: var(--negative);
 }
-
 .badge.partial,
 .badge.executing,
 .badge.received {
-  background: rgba(227, 179, 65, 0.18);
-  color: var(--warn);
+  background: var(--tag-warning-bkg);
+  color: var(--warning);
 }

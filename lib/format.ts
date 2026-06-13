@@ -82,7 +82,7 @@ export function isPositiveStr(s: string): boolean {
  * `take / total * 100` FLOORED to 2 decimal places, capped at 100. Flooring
  * guarantees a per-Slot close never exceeds what was requested (so the aggregate
  * can't over-close); the SDK accepts fractional percent (→ basis points). Returns
- * 0 for dust — the caller skips such legs. (ADR 0002.)
+ * 0 for dust - the caller skips such legs. (ADR 0002.)
  */
 export function closePercent(take: string, total: string): number {
   const t = toScaled(total);

@@ -2,8 +2,8 @@
  * Strict Valibot schemas for webhook Signal bodies (phase-A validation).
  *
  * `v.strictObject` rejects unknown keys; `v.variant("action", …)` discriminates;
- * piped `v.check(...)` enforces cross-field rules. The whole body — including the
- * `secret` — is validated here. See lib/signal/validate.ts for live bounds.
+ * piped `v.check(...)` enforces cross-field rules. The whole body - including the
+ * `secret` - is validated here. See lib/signal/validate.ts for live bounds.
  */
 import * as v from "valibot";
 
@@ -12,7 +12,7 @@ const Decimal = v.pipe(
   v.string(),
   v.regex(/^(?:0\.\d*[1-9]\d*|[1-9]\d*(?:\.\d+)?)$/, "must be a positive decimal string"),
 );
-// Non-negative decimal — used for take-profit/stop-loss where "0" clears the level.
+// Non-negative decimal - used for take-profit/stop-loss where "0" clears the level.
 const DecimalOrZero = v.pipe(
   v.string(),
   v.regex(/^\d+(\.\d+)?$/, "must be a non-negative decimal string"),

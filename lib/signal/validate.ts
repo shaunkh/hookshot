@@ -1,7 +1,7 @@
 /**
  * Two-phase Signal validation:
- *   A. Static — strict schema parse (Valibot), no network.
- *   B. Live bounds — pair exists, market open, leverage ≤ pair max, notional ≥
+ *   A. Static - strict schema parse (Valibot), no network.
+ *   B. Live bounds - pair exists, market open, leverage ≤ pair max, notional ≥
  *      MIN_OPEN_SIZE_USD, and auto day-trade when leverage exceeds the overnight
  *      cap. A rejected Signal is NEVER sent on-chain.
  */
@@ -69,7 +69,7 @@ export async function validateSignal(rawBody: string, opts: ValidateOpts): Promi
       return { ok: false, reason: `notional ${notional} below $${MIN_OPEN_USD} minimum` };
     }
     // The contract enforces collateral >= MIN_COLLATERAL_USD, so a high-leverage
-    // open can clear the notional check yet revert on submit — reject early.
+    // open can clear the notional check yet revert on submit - reject early.
     const collateral = openCollateral(cmd.size, opts.sizeUnit, price, leverage);
     if (cmpStr(collateral, MIN_COLLATERAL) < 0) {
       return { ok: false, reason: `collateral ${collateral} below $${MIN_COLLATERAL} minimum` };

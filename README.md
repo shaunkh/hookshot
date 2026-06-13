@@ -1,7 +1,7 @@
 # Ostium Webhook Trader
 
-Trade [Ostium](https://ostium.com) from any external tool — TradingView alerts,
-bots, scripts — by POSTing JSON **Signals** to a webhook URL. A hosted, multi-user
+Trade [Ostium](https://ostium.com) from any external tool - TradingView alerts,
+bots, scripts - by POSTing JSON **Signals** to a webhook URL. A hosted, multi-user
 app: sign in with your wallet, delegate trading to a server-held **trade-only**
 key, spin up webhooks, and watch signals execute live.
 
@@ -15,35 +15,69 @@ mode). A breach can grief, not steal. See `docs/adr/0001-delegate-key-custody.md
 - **viem** (SIWE + delegation), **Valibot** (signal validation), **@ostium/builder-sdk**.
 - Glossary: `CONTEXT.md`. Decisions: `docs/adr/`.
 
-## Quick start (local)
+## Configure
 
 ```bash
-# 1. Tooling (nix users): `nix develop` gives you Deno. Otherwise install Deno >= 2.8.
 cp .env.example .env            # then fill DELEGATE_PRIVATE_KEY + generate secrets:
 #   SESSION_SECRET:  openssl rand -hex 32
 #   SECRET_ENC_KEY:  openssl rand -hex 32
 #   DELEGATE_PRIVATE_KEY: a fresh trade-only key (its Safe is what users delegate to)
-
-deno install                    # populate node_modules for Vite
-deno task dev                   # http://localhost:5173 (HMR)
 ```
 
-Production / VPS:
+## Run locally with Nix
+
+The flake provides a dev shell (Deno ≥ 2.8 + sqlite/openssl/git/jq) and one-shot
+`nix run` apps. Deno itself does the build (it manages its own deps); Nix just
+provides the toolchain.
 
 ```bash
-deno task build                 # -> _fresh/
-deno task start                 # deno serve -A _fresh/server.js  (port 8000)
+nix develop                     # drops you in a shell with deno, sqlite3, openssl, …
+deno install                    # populate node_modules for Vite
+deno task dev                   # http://localhost:5173 (HMR)
+
+# …or one-shot, without entering the shell (each runs `deno install` first):
+nix run .#dev                   # Vite dev server (HMR)
+nix run .#build                 # produce _fresh/
+nix run .#serve                 # build + deno serve -A _fresh/server.js (PORT=8000)
 ```
 
-The server, on boot, runs DB migrations, starts the in-process execution worker,
-and logs the delegate **Safe address** (what users register via `setDelegate`).
+Without Nix, just install Deno ≥ 2.8 and run the `deno …` commands above
+(`deno task start` = `deno serve -A _fresh/server.js`).
+
+On boot the server runs DB migrations, starts the in-process execution worker, and
+logs the delegate **Safe address** (what users register via `setDelegate`).
+
+## Build & run the image (Docker)
+
+Images are built with Docker (the official Fresh path), not Nix: a hermetic Nix
+build can't run the networked `deno install` / `deno task build`, and vendoring
+Deno's npm cache as a fixed-output derivation has an unstable hash. So **Nix is for
+local dev; Docker builds the deployable image.** The `Dockerfile` runs
+`deno install` + `deno task build` and serves `_fresh/`.
+
+```bash
+docker build --build-arg GIT_REVISION=$(git rev-parse HEAD) -t ostium-webhook-trader .
+
+docker run --env-file .env -e DB_PATH=/data/app.db \
+  -p 8000:8000 -v owt-data:/data ostium-webhook-trader
+#   curl localhost:8000/api/health  ->  {"ok":true,...}
+```
+
+- **Secrets** are never baked into the image - pass them at runtime via `--env-file`
+  (or `-e`). The build only runs Vite and needs no secrets/RPC.
+- **SQLite** persists on the named `owt-data` volume. The image defaults
+  `DB_PATH=/data/app.db`; the explicit `-e DB_PATH=/data/app.db` above guards
+  against a local `.env` that points `DB_PATH` at a relative path (which the
+  non-root container user can't create). Set `APP_ORIGIN` to your public https
+  URL in production so SIWE domains match and cookies are `Secure`.
+- Override the Deno version with `--build-arg DENO_VERSION=2.8.2`.
 
 ## How it works
 
-1. **Sign in** with your wallet (SIWE) — your login address *is* your Ostium trader address.
+1. **Sign in** with your wallet (SIWE) - your login address *is* your Ostium trader address.
 2. **Delegate** once: from your wallet, approve USDC + `setDelegate(delegateSafe)`.
    Until done, your webhooks can't trade. The server only ever stores your *address*.
-3. **Spin up a webhook** — get a URL + secret. Add the source IP(s) of your tool to
+3. **Spin up a webhook** - get a URL + secret. Add the source IP(s) of your tool to
    its allowlist (default is **closed to all IPs**), or flip it to allow-all.
 4. **POST signals.** Each is authenticated (URL id + body secret + IP), validated,
    acknowledged fast (`202`), then executed asynchronously. Watch status live.
@@ -67,7 +101,7 @@ default; USD-collateral or USD-notional in Settings).
 // close (size or "all")
 { "secret":"whsec_…", "action":"close", "symbol":"BTC/USD", "direction":"long", "size":"all" }
 
-// modify (>=1 of takeProfit/stopLoss) — applied to every matching slot
+// modify (>=1 of takeProfit/stopLoss) - applied to every matching slot
 { "secret":"whsec_…", "action":"modify", "symbol":"BTC/USD", "direction":"long", "takeProfit":"80000" }
 
 // cancel open limit/stop orders (optional orderType filter)
@@ -115,6 +149,6 @@ A real on-chain fill needs a funded trader that has delegated to the boot Safe.
 ## Deploying behind a proxy
 
 The per-webhook IP allowlist relies on the source IP. Behind a reverse proxy, set
-`TRUSTED_PROXY_IPS` to the proxy's address(es) — only then is `X-Forwarded-For`
+`TRUSTED_PROXY_IPS` to the proxy's address(es) - only then is `X-Forwarded-For`
 honoured (otherwise it's spoofable). Set `APP_ORIGIN` to your https origin so SIWE
 domains match and session cookies are `Secure`.

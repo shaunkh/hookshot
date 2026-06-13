@@ -1,7 +1,7 @@
 /**
  * Typed, validated environment configuration.
  *
- * Call {@link getConfig} — it memoises and throws a single aggregated error
+ * Call {@link getConfig} - it memoises and throws a single aggregated error
  * listing everything missing/invalid, so a misconfigured server fails loudly at
  * boot rather than mid-request. Importing this module has no side effects;
  * validation happens on first getConfig() call.
@@ -21,7 +21,7 @@ export interface Config {
   /** IPs of trusted reverse proxies; only then is X-Forwarded-For honoured. */
   trustedProxyIps: string[];
   cookieSecure: boolean;
-  /** e.g. https://trader.example.com — used for SIWE domain + webhook URLs. */
+  /** e.g. https://trader.example.com - used for SIWE domain + webhook URLs. */
   appOrigin: string;
   dbPath: string;
   port: number;

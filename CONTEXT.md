@@ -5,7 +5,7 @@ wallet, delegates trading to a server-held **Delegate** key, and is provisioned 
 **Webhook** they can POST **Signals** to from any external app to place trades.
 Users manage their own IP allowlist through the UI. Trades execute via
 `@ostium/builder-sdk`. State lives in SQLite (for now). The server never custodies
-User keys — only the Delegate key (env), which cannot withdraw funds.
+User keys - only the Delegate key (env), which cannot withdraw funds.
 
 ## Language
 
@@ -17,7 +17,7 @@ _Avoid_: Operator, tenant, customer
 
 **Account**:
 A User's identity in the app, established by Sign-In With Ethereum: connect wallet
-+ sign a nonce. The Account address **is** the Trader address — login and on-chain
++ sign a nonce. The Account address **is** the Trader address - login and on-chain
 identity are unified. No passwords are stored.
 _Avoid_: Profile, credentials
 
@@ -29,7 +29,7 @@ _Avoid_: Wallet, address
 **Delegate**:
 A single key the server holds (from env) that signs trades on behalf of any User
 who has delegated to it. A Delegate can open and close trades but cannot withdraw
-funds — so a server breach cannot move User funds. Shared across all Users.
+funds - so a server breach cannot move User funds. Shared across all Users.
 _Avoid_: Bot key, signer, hot wallet
 
 **Delegation**:
@@ -64,7 +64,7 @@ _Avoid_: Leg, idx, sub-position
 
 **Size**:
 The magnitude of a Signal. Interpreted according to the User's configured **Size
-Unit** — base-asset units (1.5 BTC, 10 oz XAU) by default, or USD collateral / USD
+Unit** - base-asset units (1.5 BTC, 10 oz XAU) by default, or USD collateral / USD
 notional if the User changes it. For opens the app derives collateral (and from it
 leverage/price as needed); for closes the app derives per-Slot `closePercent` from
 Size. `"all"` means the full aggregate.
@@ -78,7 +78,7 @@ _Avoid_: Denomination, currency
 
 **Allocation**:
 The mapping of a Signal's requested net size onto individual Slots, **largest Slot
-first** — e.g. a 1.2 BTC close against a 1.0 + 0.5 Position closes the 1.0 Slot
+first** - e.g. a 1.2 BTC close against a 1.0 + 0.5 Position closes the 1.0 Slot
 fully and 0.2 of the 0.5 Slot (40%, leaving 0.3 open), computed as a per-Slot
 `closePercent`.
 _Avoid_: Distribution, fill, split
@@ -90,7 +90,7 @@ Webhook secret; they never hold keys.
 _Avoid_: Client, user, sender
 
 **Webhook**:
-A named endpoint a User spins up — an unguessable URL id plus a secret. A User can
+A named endpoint a User spins up - an unguessable URL id plus a secret. A User can
 have many (e.g. one per external app), each with its own secret and IP allowlist,
 each individually revocable/rotatable without affecting the others. A Signal is
 accepted only when all three hold: the URL id is valid, the body secret matches,
@@ -98,13 +98,13 @@ and the source IP is on the Webhook's allowlist.
 _Avoid_: Endpoint, hook, route
 
 **Spin up**:
-The act of provisioning a new Webhook — the app mints a fresh URL id + secret for
+The act of provisioning a new Webhook - the app mints a fresh URL id + secret for
 the User to paste into an external app. Revoking destroys a Webhook's URL/secret
 so Signals to it are refused.
 _Avoid_: Start, launch, deploy
 
 **IP Allowlist**:
-A set of allowed source IPs/CIDRs scoped to a **single Webhook** — each URL has its
+A set of allowed source IPs/CIDRs scoped to a **single Webhook** - each URL has its
 own, independent of every other Webhook (a User with three URLs has three separate
 allowlists). A Signal is refused unless its source IP matches the allowlist of the
 exact Webhook it was sent to. The default is **closed to all IPs** (empty list ⇒
@@ -115,8 +115,8 @@ never the result of an empty list.
 _Avoid_: Whitelist, firewall, global allowlist
 
 **Body Helper**:
-An interactive UI that builds a ready-to-paste Signal body for a chosen Webhook —
-pre-filled with that Webhook's URL + secret, in the User's Size Unit — plus a
+An interactive UI that builds a ready-to-paste Signal body for a chosen Webhook -
+pre-filled with that Webhook's URL + secret, in the User's Size Unit - plus a
 TradingView alert-message template with placeholders. It teaches a Poster exactly
 what to send.
 _Avoid_: Docs, schema viewer, generator

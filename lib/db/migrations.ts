@@ -1,6 +1,6 @@
 /**
  * Ordered, idempotent schema migrations. Index = version. NEVER reorder or edit
- * an applied entry — only append. Applied versions are tracked in `_migrations`.
+ * an applied entry - only append. Applied versions are tracked in `_migrations`.
  *
  * Conventions: addresses lowercased; timestamps unix-ms integers; booleans 0/1;
  * money/price values stored as decimal TEXT (never float/INTEGER) to avoid drift
@@ -9,7 +9,7 @@
 import { getDb, transaction } from "./sqlite.ts";
 
 export const MIGRATIONS: readonly string[] = [
-  // 0 — users (Account = wallet via SIWE; trader_addr is login + on-chain identity)
+  // 0 - users (Account = wallet via SIWE; trader_addr is login + on-chain identity)
   `CREATE TABLE users (
      id            TEXT PRIMARY KEY,
      trader_addr   TEXT NOT NULL UNIQUE,
@@ -20,14 +20,14 @@ export const MIGRATIONS: readonly string[] = [
      last_login_at INTEGER
    );`,
 
-  // 1 — single-use SIWE login nonces
+  // 1 - single-use SIWE login nonces
   `CREATE TABLE siwe_nonces (
      nonce      TEXT PRIMARY KEY,
      created_at INTEGER NOT NULL,
      consumed   INTEGER NOT NULL DEFAULT 0
    );`,
 
-  // 2 — webhooks (many per user; secret AES-GCM encrypted at rest)
+  // 2 - webhooks (many per user; secret AES-GCM encrypted at rest)
   `CREATE TABLE webhooks (
      id            TEXT PRIMARY KEY,
      user_id       TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -41,7 +41,7 @@ export const MIGRATIONS: readonly string[] = [
    );`,
   `CREATE INDEX idx_webhooks_user ON webhooks(user_id);`,
 
-  // 3 — per-webhook IP allowlist (empty ⇒ deny all unless allow_mode='allow_all')
+  // 3 - per-webhook IP allowlist (empty ⇒ deny all unless allow_mode='allow_all')
   `CREATE TABLE webhook_ips (
      id         TEXT PRIMARY KEY,
      webhook_id TEXT NOT NULL REFERENCES webhooks(id) ON DELETE CASCADE,
@@ -51,7 +51,7 @@ export const MIGRATIONS: readonly string[] = [
    );`,
   `CREATE INDEX idx_webhook_ips_hook ON webhook_ips(webhook_id);`,
 
-  // 4 — signals (every accepted/rejected attempt; raw body retained for audit)
+  // 4 - signals (every accepted/rejected attempt; raw body retained for audit)
   `CREATE TABLE signals (
      id          TEXT PRIMARY KEY,
      webhook_id  TEXT NOT NULL REFERENCES webhooks(id) ON DELETE CASCADE,
@@ -75,7 +75,7 @@ export const MIGRATIONS: readonly string[] = [
   `CREATE UNIQUE INDEX idx_signals_clientid ON signals(webhook_id, client_id)
      WHERE client_id IS NOT NULL;`,
 
-  // 5 — per-tx fan-out results for a signal
+  // 5 - per-tx fan-out results for a signal
   `CREATE TABLE signal_txs (
      id          TEXT PRIMARY KEY,
      signal_id   TEXT NOT NULL REFERENCES signals(id) ON DELETE CASCADE,
@@ -93,7 +93,7 @@ export const MIGRATIONS: readonly string[] = [
    );`,
   `CREATE INDEX idx_signal_txs_signal ON signal_txs(signal_id, seq);`,
 
-  // 6 — delegation cache (chain is source of truth; allowance re-read live)
+  // 6 - delegation cache (chain is source of truth; allowance re-read live)
   `CREATE TABLE delegations (
      user_id        TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
      delegate_safe  TEXT NOT NULL,
@@ -104,7 +104,7 @@ export const MIGRATIONS: readonly string[] = [
      checked_at     INTEGER
    );`,
 
-  // 7 — bind a SIWE nonce to the address that requested it (defense in depth)
+  // 7 - bind a SIWE nonce to the address that requested it (defense in depth)
   `ALTER TABLE siwe_nonces ADD COLUMN address TEXT;`,
 ];
 

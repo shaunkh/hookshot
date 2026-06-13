@@ -1,0 +1,14 @@
+# Rebuilt inside the image
+node_modules/
+_fresh/
+
+# Secrets + local state (never copy into the image)
+.env
+data/
+
+# VCS / nix / editor / agent cruft
+.git/
+.direnv/
+result
+result-*
+.claude/

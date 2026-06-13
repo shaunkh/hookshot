@@ -4,7 +4,7 @@
  * consumer (see queue.ts) serialises execution.
  *
  * Crash recovery is SAFE-BY-DEFAULT: a Signal left in `executing` may have already
- * broadcast on-chain txs, so we never blindly re-run it — it is marked `failed`
+ * broadcast on-chain txs, so we never blindly re-run it - it is marked `failed`
  * (needs manual review) on boot. Only never-started (`received`) Signals re-enqueue.
  */
 import { enqueue, queueDepth, setJobHandler } from "./queue.ts";
@@ -68,10 +68,10 @@ export function startWorker(): void {
     if (s.status === "received") {
       enqueue(s.id); // never started → safe to run
     } else {
-      // `executing` may have already broadcast txs — do NOT auto-resubmit.
+      // `executing` may have already broadcast txs - do NOT auto-resubmit.
       updateSignal(s.id, {
         status: "failed",
-        reason: "interrupted during execution — not auto-resumed; review on-chain state",
+        reason: "interrupted during execution - not auto-resumed; review on-chain state",
         executedAt: Date.now(),
       });
     }

@@ -12,7 +12,7 @@ export function provider(): EIP1193Provider | undefined {
 
 export function getWallet() {
   const eth = provider();
-  if (!eth) throw new Error("No Ethereum wallet found — install MetaMask or similar.");
+  if (!eth) throw new Error("No Ethereum wallet found - install MetaMask or similar.");
   return createWalletClient({ chain: arbitrum, transport: custom(eth) });
 }
 

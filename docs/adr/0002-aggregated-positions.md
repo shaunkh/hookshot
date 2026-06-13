@@ -11,7 +11,7 @@ of less than the full aggregate is mapped onto Slots **largest Slot first**: a
 
 - **Raw Ostium passthrough (Poster supplies `idx`/`price`/`orderId`).** Rejected:
   a Poster (e.g. a TradingView alert) cannot know `idx` or live price without
-  querying chain state first — effectively unusable from the tools this app exists
+  querying chain state first - effectively unusable from the tools this app exists
   to serve.
 - **Reject when multiple Slots match.** Rejected after discussion: a strategy with
   two longs on one pair could then never exit via webhook.

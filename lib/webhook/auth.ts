@@ -1,6 +1,6 @@
 /**
- * The two cryptographic/network webhook gates (the third — that the webhook id
- * exists and is active — is a DB lookup done in the route). Kept pure so the
+ * The two cryptographic/network webhook gates (the third - that the webhook id
+ * exists and is active - is a DB lookup done in the route). Kept pure so the
  * route composes 404/401/403 around them.
  */
 import { decryptSecret, secretsMatch } from "../crypto.ts";
