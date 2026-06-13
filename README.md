@@ -1,1 +1,0 @@
-# ostium-sdk-hackathon-june-2026
