@@ -1,5 +1,5 @@
 {
-  description = "Ostium Webhook Trader - Deno/Fresh dev environment";
+  description = "Hookshot - Deno/Fresh dev environment";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -27,21 +27,26 @@
           default = pkgs.mkShell {
             # deno >= 2.8 is required for the built-in node:sqlite module.
             packages = [
-              pkgs.git
               pkgs.deno
+              pkgs.git
               pkgs.sqlite # `sqlite3` CLI for inspecting ./data/app.db
               pkgs.openssl # generate SESSION_SECRET / SECRET_ENC_KEY
-              pkgs.git
-              pkgs.jq
+              pkgs.jq # parse JSON in the verify/seed scripts
+              pkgs.curl # POST test signals to a webhook
+              pkgs.cloudflared # public HTTPS tunnel so TradingView can reach a local run
             ];
             shellHook = ''
-              echo "Ostium Webhook Trader - dev shell ($(deno --version | head -n1))"
+              echo "Hookshot - dev shell ($(deno --version | head -n1))"
               echo
               echo "  cp .env.example .env   # fill DELEGATE_PRIVATE_KEY; gen secrets:"
               echo "    openssl rand -hex 32   (SESSION_SECRET and SECRET_ENC_KEY)"
               echo "  deno install           # populate node_modules for Vite"
               echo "  deno task dev          # http://localhost:5173 (HMR)"
               echo "  deno task test         # run the test suite"
+              echo
+              echo "  Docker:  docker compose up --build         # app on http://localhost:8000"
+              echo "  Tunnel:  cloudflared tunnel --url http://localhost:8000   # public URL for TradingView"
+              echo "           (then set APP_ORIGIN to the printed https URL)"
               echo
               echo "  or via nix:  nix run .#dev   |   nix run .#serve   |   nix run .#build"
             '';
@@ -69,18 +74,18 @@
         {
           # Vite dev server with HMR (default).
           default = self.apps.${system}.dev;
-          dev = mkApp "owt-dev" ''
+          dev = mkApp "hookshot-dev" ''
             deno install --allow-scripts
             exec deno task dev "$@"
           '';
           # Production build + serve the optimized output.
-          serve = mkApp "owt-serve" ''
+          serve = mkApp "hookshot-serve" ''
             deno install --allow-scripts
             deno task build
             exec deno serve -A --port "''${PORT:-8000}" _fresh/server.js
           '';
           # Just produce the _fresh/ build output.
-          build = mkApp "owt-build" ''
+          build = mkApp "hookshot-build" ''
             deno install --allow-scripts
             exec deno task build
           '';

@@ -1,0 +1,8 @@
+# Auto-HTTPS reverse proxy for Hookshot. Caddy obtains + renews a Let's Encrypt
+# certificate for $DOMAIN automatically. Set DOMAIN via the compose `proxy`
+# profile (from APP_DOMAIN in .env) and point that domain's DNS A/AAAA record at
+# this VPS first.
+{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:8000
+}

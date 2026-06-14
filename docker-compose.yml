@@ -1,0 +1,63 @@
+# Hookshot - local + VPS orchestration.
+#
+#   Local:  docker compose up --build           # app on http://localhost:8000
+#   VPS:    docker compose --profile proxy up -d --build   # app + Caddy (auto-HTTPS)
+#
+# Secrets come from .env at runtime (never baked into the image). The `app`
+# service runs alone by default; the `caddy` service only starts with the
+# `proxy` profile, so local dev stays simple.
+services:
+  app:
+    build:
+      context: .
+      args:
+        # Cache-bust the build per commit: `GIT_REVISION=$(git rev-parse HEAD) docker compose build`
+        GIT_REVISION: ${GIT_REVISION:-dev}
+    image: hookshot
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # Override any relative DB_PATH from .env: the non-root container user can
+      # only write the mounted volume.
+      DB_PATH: /data/app.db
+      # Caddy is the only client of the app on the VPS; trust its X-Forwarded-For
+      # so per-webhook IP allowlists see the real client IP. Matches the subnet
+      # below. (Harmless locally where you hit the app directly.)
+      TRUSTED_PROXY_IPS: 172.28.0.0/16
+    volumes:
+      - hookshot-data:/data
+    networks:
+      - hookshot
+    # Bound to loopback: reachable locally, not exposed to the internet. On the
+    # VPS, public traffic arrives via Caddy over the internal network instead.
+    ports:
+      - "127.0.0.1:8000:8000"
+
+  caddy:
+    image: caddy:2
+    profiles: ["proxy"]
+    restart: unless-stopped
+    depends_on: [app]
+    environment:
+      # Set APP_DOMAIN in .env, e.g. APP_DOMAIN=trader.example.com
+      DOMAIN: ${APP_DOMAIN:-localhost}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      - hookshot
+
+networks:
+  hookshot:
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+volumes:
+  hookshot-data:
+  caddy-data:
+  caddy-config:

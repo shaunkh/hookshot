@@ -32,6 +32,19 @@ export interface CloseLeg {
   closePercent: number; // 1..100
 }
 
+/**
+ * Resolve an open command's effective (size, unit). An explicit `collateral`
+ * field commits USDC directly - independent of the user's Size Unit - so it maps
+ * to `usd_collateral`; otherwise `size` is interpreted per the user's unit.
+ */
+export function resolveOpenSize(
+  cmd: { size?: string; collateral?: string },
+  unit: SizeUnit,
+): { size: string; unit: SizeUnit } {
+  if (cmd.collateral !== undefined) return { size: cmd.collateral, unit: "usd_collateral" };
+  return { size: cmd.size!, unit };
+}
+
 /** Collateral (USD, 6dp) for `openTrade`, derived from Signal size + unit. */
 export function openCollateral(
   size: string,

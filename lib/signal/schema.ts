@@ -37,7 +37,12 @@ export const OpenSchema = v.pipe(
   v.strictObject({
     ...envelope,
     action: v.literal("open"),
-    size: Decimal, // base/USD per the user's Size Unit; never "all"
+    // Position size in the user's Size Unit (base/USD); never "all". Mutually
+    // exclusive with `collateral`.
+    size: v.optional(Decimal),
+    // USDC collateral to commit, regardless of the user's Size Unit. Alternative
+    // to `size`; exactly one of the two must be provided.
+    collateral: v.optional(Decimal),
     leverage: v.optional(Decimal),
     orderType: v.optional(v.picklist(["market", "limit", "stop"]), "market"),
     price: v.optional(Decimal),
@@ -47,6 +52,10 @@ export const OpenSchema = v.pipe(
   v.check(
     (i) => i.orderType === "market" || i.price !== undefined,
     "price is required for limit/stop orders",
+  ),
+  v.check(
+    (i) => (i.size === undefined) !== (i.collateral === undefined),
+    "provide exactly one of size or collateral",
   ),
 );
 

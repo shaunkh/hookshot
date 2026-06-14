@@ -20,6 +20,16 @@ Deno.test("open rejects size:'all'", () => {
   assert(!r.success);
 });
 
+Deno.test("open accepts collateral instead of size", () => {
+  const r = parse({ ...base, action: "open", collateral: "50", leverage: "10" });
+  assert(r.success);
+});
+
+Deno.test("open rejects both size and collateral, and neither", () => {
+  assert(!parse({ ...base, action: "open", size: "1", collateral: "50", leverage: "10" }).success);
+  assert(!parse({ ...base, action: "open", leverage: "10" }).success);
+});
+
 Deno.test("strictObject rejects unknown keys", () => {
   const r = parse({ ...base, action: "open", size: "1", leverage: "10", foo: "bar" });
   assert(!r.success);

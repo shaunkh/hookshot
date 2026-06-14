@@ -1,12 +1,15 @@
 /**
  * Webhook ingest - the only public, session-less endpoint. Triple gate:
  *   1. URL id exists & active        (else 404)
- *   2. body `secret` matches          (else 401)
+ *   2. `secret` matches (body or query) (else 401)
  *   3. source IP allowed              (else 403, recorded as rejected)
  * Then idempotency, persist `received`, 202, and enqueue for async execution.
  *
  * Posters (e.g. TradingView) can't send custom headers, so the secret travels in
- * the JSON body and the id in the path.
+ * the JSON body and the id in the path. The signal fields (incl. `secret`) may
+ * also be supplied as URL query params - useful for tools whose webhook is a
+ * single URL with no body. Query params and a JSON body merge (body wins on
+ * conflict), so you can put everything in the URL, in the body, or split.
  *
  * Hardening:
  *  - No DB write happens before the secret gate passes (prevents an unauthenticated
@@ -50,23 +53,36 @@ export const handler = define.handlers({
     const raw = await ctx.req.text();
     if (raw.length > MAX_BODY_BYTES) return ctx.json({ error: "body too large" }, { status: 413 });
 
-    // Gate 2 (secret) is checked with NO DB write, so a known id alone can't fill the DB.
-    let parsed: Record<string, unknown>;
-    try {
-      const j = JSON.parse(raw);
-      if (typeof j !== "object" || j === null) throw new Error("not an object");
-      parsed = j as Record<string, unknown>;
-    } catch {
-      return ctx.json({ error: "invalid JSON body" }, { status: 400 });
+    // Build the signal from query params first, then overlay a JSON body if one
+    // was sent (body wins on conflict). This lets posters use a single URL with
+    // everything in the query, a JSON body, or a mix. Gate 2 (secret) is checked
+    // with NO DB write, so a known id alone can't fill the DB.
+    const parsed: Record<string, unknown> = {};
+    for (const [k, v] of new URL(ctx.req.url).searchParams) parsed[k] = v;
+    const rawTrim = raw.trim();
+    if (rawTrim) {
+      try {
+        const j = JSON.parse(rawTrim);
+        if (typeof j !== "object" || j === null) throw new Error("not an object");
+        Object.assign(parsed, j);
+      } catch {
+        // A non-JSON body is only an error when there are no query params to fall
+        // back on (some tools send a default/empty body alongside a query URL).
+        if (Object.keys(parsed).length === 0) {
+          return ctx.json({ error: "invalid JSON body" }, { status: 400 });
+        }
+      }
     }
     const secret = typeof parsed.secret === "string" ? parsed.secret : "";
     if (!secret || !(await secretOk(webhook, secret))) {
       return ctx.json({ error: "invalid secret" }, { status: 401 });
     }
 
-    // Authenticated from here. Persist with the secret REDACTED.
+    // Authenticated from here. Persist with the secret REDACTED. Hash the redacted
+    // body (not the raw request) so query-param signals dedupe by content too -
+    // an empty raw body would otherwise collide for every query-only request.
     const safeBody = redact(parsed);
-    const bodyHash = await sha256Hex(raw);
+    const bodyHash = await sha256Hex(safeBody);
     const sourceIp = sourceIpOf(ctx);
     const clientId = typeof parsed.clientId === "string" ? parsed.clientId : null;
 

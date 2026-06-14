@@ -1,5 +1,5 @@
 /**
- * Shared domain + persistence types for the Ostium Webhook Trader.
+ * Shared domain + persistence types for Hookshot.
  *
  * See CONTEXT.md for the glossary. These types are deliberately framework-free so
  * every layer (db, ostium, signal, worker, routes) can depend on them without

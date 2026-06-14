@@ -10,7 +10,7 @@ import { MIN_COLLATERAL_USD, MIN_OPEN_SIZE_USD } from "@ostium/builder-sdk";
 import type { Pair } from "@ostium/builder-sdk";
 import { rejection, type WebhookCommand, WebhookSchema } from "./schema.ts";
 import { livePrice, resolvePair } from "../ostium/read.ts";
-import { openCollateral, openNotional } from "../ostium/pricing.ts";
+import { openCollateral, openNotional, resolveOpenSize } from "../ostium/pricing.ts";
 import { cmpStr } from "../format.ts";
 import { directionToSide, type Side, type SizeUnit } from "../types.ts";
 
@@ -64,13 +64,14 @@ export async function validateSignal(rawBody: string, opts: ValidateOpts): Promi
       return { ok: false, reason: `leverage ${leverage} exceeds pair max ${pair.maxLeverage}` };
     }
     const price = cmd.orderType === "market" ? (await livePrice(pair.pairId)).mid : cmd.price!;
-    const notional = openNotional(cmd.size, opts.sizeUnit, price, leverage);
+    const { size, unit } = resolveOpenSize(cmd, opts.sizeUnit);
+    const notional = openNotional(size, unit, price, leverage);
     if (cmpStr(notional, MIN_OPEN_USD) < 0) {
       return { ok: false, reason: `notional ${notional} below $${MIN_OPEN_USD} minimum` };
     }
     // The contract enforces collateral >= MIN_COLLATERAL_USD, so a high-leverage
     // open can clear the notional check yet revert on submit - reject early.
-    const collateral = openCollateral(cmd.size, opts.sizeUnit, price, leverage);
+    const collateral = openCollateral(size, unit, price, leverage);
     if (cmpStr(collateral, MIN_COLLATERAL) < 0) {
       return { ok: false, reason: `collateral ${collateral} below $${MIN_COLLATERAL} minimum` };
     }

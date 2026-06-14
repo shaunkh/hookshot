@@ -6,7 +6,8 @@ export default define.page(function Home(ctx) {
   const user = ctx.state.user;
   return (
     <div class="container">
-      <h1>Ostium Webhook Trader</h1>
+      <h1>Hookshot</h1>
+      <p class="muted" style="font-size:18px;margin-top:-8px">Catch every move.</p>
       <p class="muted">
         Trade Ostium from any external tool (TradingView, bots, scripts) by POSTing JSON signals to
         a webhook URL. Your keys never touch the server - trades execute via a trade-only delegate

@@ -1,4 +1,6 @@
-# Ostium Webhook Trader
+# Hookshot
+
+**Catch every move.**
 
 Trade [Ostium](https://ostium.com) from any external tool - TradingView alerts,
 bots, scripts - by POSTing JSON **Signals** to a webhook URL. A hosted, multi-user
@@ -55,6 +57,10 @@ logs the delegate **Safe address** (what users register via `setDelegate`).
 
 ## Build & run the image (Docker)
 
+> **Run it locally** in Docker behind a public Cloudflare tunnel (so TradingView
+> can reach it): **[LOCAL_DEPLOY.md](LOCAL_DEPLOY.md)**.
+> **Deploy to a VPS** with a domain + auto-HTTPS: **[DEPLOY.md](DEPLOY.md)**.
+
 Images are built with Docker (the official Fresh path), not Nix: a hermetic Nix
 build can't run the networked `deno install` / `deno task build`, and vendoring
 Deno's npm cache as a fixed-output derivation has an unstable hash. So **Nix is for
@@ -62,16 +68,16 @@ local dev; Docker builds the deployable image.** The `Dockerfile` runs
 `deno install` + `deno task build` and serves `_fresh/`.
 
 ```bash
-docker build --build-arg GIT_REVISION=$(git rev-parse HEAD) -t ostium-webhook-trader .
+docker build --build-arg GIT_REVISION=$(git rev-parse HEAD) -t hookshot .
 
 docker run --env-file .env -e DB_PATH=/data/app.db \
-  -p 8000:8000 -v owt-data:/data ostium-webhook-trader
+  -p 8000:8000 -v hookshot-data:/data hookshot
 #   curl localhost:8000/api/health  ->  {"ok":true,...}
 ```
 
 - **Secrets** are never baked into the image - pass them at runtime via `--env-file`
   (or `-e`). The build only runs Vite and needs no secrets/RPC.
-- **SQLite** persists on the named `owt-data` volume. The image defaults
+- **SQLite** persists on the named `hookshot-data` volume. The image defaults
   `DB_PATH=/data/app.db`; the explicit `-e DB_PATH=/data/app.db` above guards
   against a local `.env` that points `DB_PATH` at a relative path (which the
   non-root container user can't create). Set `APP_ORIGIN` to your public https
@@ -96,13 +102,19 @@ close maps onto the underlying Ostium slots largest-first (`docs/adr/0002`).
 POST JSON to `https://<host>/h/<webhook-id>`. Every body carries `secret`, `symbol`
 (e.g. `"BTC/USD"`), `direction` (`"long"`|`"short"`), and an optional `clientId`
 (idempotency key). `size` is read in your configured **Size Unit** (base asset by
-default; USD-collateral or USD-notional in Settings).
+default; USD-collateral or USD-notional in Settings). On **open** you may instead
+send `collateral` (USDC) to commit collateral directly, regardless of Size Unit -
+provide exactly one of `size` or `collateral`.
 
 ```jsonc
-// open
+// open  (give EITHER "size" - in your Size Unit - OR "collateral" in USDC)
 { "secret":"whsec_…", "action":"open", "symbol":"BTC/USD", "direction":"long",
   "size":"0.05", "leverage":"10", "orderType":"market",   // limit|stop need "price"
   "takeProfit":"75000", "stopLoss":"60000" }              // optional
+
+// open by USDC collateral (independent of your Size Unit setting)
+{ "secret":"whsec_…", "action":"open", "symbol":"BTC/USD", "direction":"long",
+  "collateral":"50", "leverage":"10" }
 
 // close (size or "all")
 { "secret":"whsec_…", "action":"close", "symbol":"BTC/USD", "direction":"long", "size":"all" }

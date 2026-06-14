@@ -1,4 +1,6 @@
-# Ostium Webhook Trader
+# Hookshot
+
+> Catch every move.
 
 A hosted, multi-user app. Each **User** logs in, connects their Ostium trading
 wallet, delegates trading to a server-held **Delegate** key, and is provisioned a

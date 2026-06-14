@@ -73,7 +73,7 @@ function build(): Config {
   const chainId = testnet ? CHAIN_TESTNET : CHAIN_MAINNET;
   if (testnetRaw && rpcRaw && testnet !== rpcLooksTestnet) {
     console.warn(
-      `[env] OSTIUM_TESTNET says testnet=${testnet} but ARBITRUM_RPC_URL doesn't look like that network — honoring OSTIUM_TESTNET. Make sure the RPC matches.`,
+      `[env] OSTIUM_TESTNET says testnet=${testnet} but ARBITRUM_RPC_URL doesn't look like that network - honoring OSTIUM_TESTNET. Make sure the RPC matches.`,
     );
   }
 

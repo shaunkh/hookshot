@@ -6,6 +6,10 @@ _fresh/
 .env
 data/
 
+# Orchestration (not needed inside the image)
+docker-compose.yml
+Caddyfile
+
 # VCS / nix / editor / agent cruft
 .git/
 .direnv/

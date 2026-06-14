@@ -26,6 +26,10 @@ export default function WebhookManager() {
     const r = await fetch("/api/webhooks");
     if (r.ok) list.value = (await r.json()).webhooks;
   }
+  /** Tell the BodyHelper island its webhook list/secrets may have changed. */
+  function notifyChange() {
+    if (IS_BROWSER) globalThis.dispatchEvent(new CustomEvent("hookshot:webhooks-changed"));
+  }
   useEffect(() => {
     if (IS_BROWSER) load();
   }, []);
@@ -40,6 +44,7 @@ export default function WebhookManager() {
       justCreated.value = (await r.json()).secret;
       newName.value = "";
       await load();
+      notifyChange();
     }
   }
   async function toggleAllowAll(w: WH) {
@@ -53,7 +58,10 @@ export default function WebhookManager() {
   }
   async function rotate(w: WH) {
     const r = await fetch(`/api/webhooks/${w.id}/rotate`, { method: "POST" });
-    if (r.ok) justCreated.value = (await r.json()).secret;
+    if (r.ok) {
+      justCreated.value = (await r.json()).secret;
+      notifyChange();
+    }
   }
   async function remove(w: WH) {
     if (!globalThis.confirm(`Delete webhook "${w.name}"? Posters using it will stop working.`)) {
@@ -61,6 +69,7 @@ export default function WebhookManager() {
     }
     await fetch(`/api/webhooks/${w.id}`, { method: "DELETE" });
     await load();
+    notifyChange();
   }
   async function loadDetail(w: WH) {
     const r = await fetch(`/api/webhooks/${w.id}`);
@@ -116,11 +125,11 @@ export default function WebhookManager() {
         const det = detail.value[w.id];
         return (
           <div class="panel" key={w.id}>
-            <div class="row" style="justify-content:space-between">
+            <div class="row" style="justify-content:space-between;gap:16px">
               <strong>{w.name}</strong>
               <span class="muted mono">{w.url}</span>
             </div>
-            <div class="row">
+            <div class="row" style="margin-top:12px">
               <button type="button" class="secondary" onClick={() => loadDetail(w)}>
                 Reveal secret / IPs
               </button>

@@ -8,7 +8,7 @@ import { recoverMessageAddress } from "viem";
 import type { Address, Hex } from "viem";
 import { getConfig } from "../env.ts";
 
-const STATEMENT = "Sign in to Ostium Webhook Trader.";
+const STATEMENT = "Sign in to Hookshot.";
 
 export function buildSiweMessage(address: string, nonce: string, issuedAt: string): string {
   const cfg = getConfig();

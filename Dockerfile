@@ -1,7 +1,7 @@
-# Ostium Webhook Trader - production image (Fresh 2.x official `deno serve` path).
+# Hookshot - production image (Fresh 2.x official `deno serve` path).
 #
-# Build:  docker build --build-arg GIT_REVISION=$(git rev-parse HEAD) -t ostium-webhook-trader .
-# Run:    docker run --env-file .env -p 8000:8000 -v owt-data:/data ostium-webhook-trader
+# Build:  docker build --build-arg GIT_REVISION=$(git rev-parse HEAD) -t hookshot .
+# Run:    docker run --env-file .env -p 8000:8000 -v hookshot-data:/data hookshot
 #
 # Secrets (DELEGATE_PRIVATE_KEY, SESSION_SECRET, SECRET_ENC_KEY, …) are NEVER baked
 # in - the build only runs Vite. Pass them at runtime via --env-file / -e.

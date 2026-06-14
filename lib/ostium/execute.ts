@@ -24,6 +24,7 @@ import {
   allocateClose,
   closeTargetBase,
   openCollateral,
+  resolveOpenSize,
 } from "./pricing.ts";
 import { minStr } from "../format.ts";
 import { createSignalTx, updateSignalTx } from "../db/repo.ts";
@@ -57,7 +58,8 @@ async function buildPlan(vr: ValidatedOk, user: UserRow): Promise<Plan> {
     const price = cmd.orderType === "market"
       ? (side === "B" ? triple.ask : triple.bid)
       : cmd.price!;
-    const collateral = openCollateral(cmd.size, user.size_unit, price, vr.leverage);
+    const { size, unit } = resolveOpenSize(cmd, user.size_unit);
+    const collateral = openCollateral(size, unit, price, vr.leverage);
     const type = cmd.orderType === "limit"
       ? OrderType.Limit
       : cmd.orderType === "stop"
