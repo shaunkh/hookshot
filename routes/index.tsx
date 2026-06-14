@@ -1,4 +1,5 @@
 import { define } from "../utils.ts";
+import { getConfig } from "@/lib/env.ts";
 import ConnectWallet from "../islands/ConnectWallet.tsx";
 
 export default define.page(function Home(ctx) {
@@ -22,7 +23,7 @@ export default define.page(function Home(ctx) {
           <div class="panel">
             <h3>Sign in</h3>
             <p class="muted">Connect your wallet to create webhooks and manage delegation.</p>
-            <ConnectWallet />
+            <ConnectWallet chainId={getConfig().chainId} />
           </div>
         )}
     </div>

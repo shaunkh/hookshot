@@ -1,5 +1,6 @@
 import { page } from "fresh";
 import { define } from "@/utils.ts";
+import { getConfig } from "@/lib/env.ts";
 import DelegationFlow from "@/islands/DelegationFlow.tsx";
 import SignalFeed from "@/islands/SignalFeed.tsx";
 
@@ -25,7 +26,10 @@ export default define.page(function Dashboard(ctx) {
         </nav>
       </div>
       <p class="muted mono">{user.trader_addr}</p>
-      <DelegationFlow traderAddr={user.trader_addr} />
+      <p class="muted">
+        Network: {getConfig().testnet ? "Arbitrum Sepolia (testnet)" : "Arbitrum One"}
+      </p>
+      <DelegationFlow traderAddr={user.trader_addr} chainId={getConfig().chainId} />
       <SignalFeed />
     </div>
   );

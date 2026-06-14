@@ -18,11 +18,14 @@ import { getConfig } from "../env.ts";
 // hiccup at construction) doesn't permanently brick a trader's webhook.
 let _reader: Promise<OstiumClient> | null = null;
 export function getReader(): Promise<OstiumClient> {
-  return (_reader ??= OstiumClient.createReadOnly({ rpcUrl: getConfig().arbitrumRpcUrl })
-    .catch((e) => {
-      _reader = null;
-      throw e;
-    }));
+  const cfg = getConfig();
+  return (_reader ??= OstiumClient.createReadOnly({
+    rpcUrl: cfg.arbitrumRpcUrl,
+    testnet: cfg.testnet,
+  }).catch((e) => {
+    _reader = null;
+    throw e;
+  }));
 }
 
 const _delegated = new Map<string, Promise<OstiumClient>>();
@@ -36,6 +39,8 @@ export function getDelegatedClient(trader: string): Promise<OstiumClient> {
       delegatePrivateKey: cfg.delegatePrivateKey,
       traderAddress: trader as Address,
       pimlicoUrl: cfg.pimlicoUrl,
+      rpcUrl: cfg.arbitrumRpcUrl,
+      testnet: cfg.testnet,
     }).catch((e) => {
       _delegated.delete(key);
       throw e;
@@ -51,9 +56,11 @@ export function getBuildClient(trader: string): Promise<OstiumClient> {
   const key = trader.toLowerCase();
   let c = _build.get(key);
   if (!c) {
+    const cfg = getConfig();
     c = OstiumClient.createSelfAndSelf({
       traderAddress: trader as Address,
-      rpcUrl: getConfig().arbitrumRpcUrl,
+      rpcUrl: cfg.arbitrumRpcUrl,
+      testnet: cfg.testnet,
     }).catch((e) => {
       _build.delete(key);
       throw e;
@@ -78,6 +85,8 @@ export function delegateSafeAddress(): Promise<Address> {
       delegatePrivateKey: cfg.delegatePrivateKey,
       traderAddress: delegate,
       pimlicoUrl: cfg.pimlicoUrl,
+      rpcUrl: cfg.arbitrumRpcUrl,
+      testnet: cfg.testnet,
     });
     const safe = client.getSmartAccountAddress();
     if (!safe) throw new Error("could not derive delegate Safe address from delegate key");

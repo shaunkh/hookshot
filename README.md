@@ -24,6 +24,12 @@ cp .env.example .env            # then fill DELEGATE_PRIVATE_KEY + generate secr
 #   DELEGATE_PRIVATE_KEY: a fresh trade-only key (its Safe is what users delegate to)
 ```
 
+**Network:** **Arbitrum Sepolia testnet by default.** For Arbitrum One mainnet, set
+`OSTIUM_TESTNET=false` and point `ARBITRUM_RPC_URL` at a mainnet RPC. If
+`OSTIUM_TESTNET` is unset, the network is auto-detected from the RPC host (a
+`sepolia` host ⇒ testnet, else testnet). The chainId (421614 ↔ 42161), the Ostium
+subgraph, and the RPC + Pimlico defaults all follow the selected network.
+
 ## Run locally with Nix
 
 The flake provides a dev shell (Deno ≥ 2.8 + sqlite/openssl/git/jq) and one-shot

@@ -25,11 +25,16 @@ export interface Config {
   appOrigin: string;
   dbPath: string;
   port: number;
-  readonly chainId: 42161;
+  /** true = Arbitrum Sepolia testnet (chainId 421614); false = Arbitrum One (42161). */
+  testnet: boolean;
+  readonly chainId: 42161 | 421614;
 }
 
-const DEFAULT_RPC = "https://arb1.arbitrum.io/rpc";
-const DEFAULT_PIMLICO = "https://builder.ostium.io/v1/pimlico/sponsor?chainId=42161";
+const DEFAULT_RPC_MAINNET = "https://arb1.arbitrum.io/rpc";
+const DEFAULT_RPC_TESTNET = "https://sepolia-rollup.arbitrum.io/rpc";
+const PIMLICO_BASE = "https://builder.ostium.io/v1/pimlico/sponsor?chainId=";
+const CHAIN_MAINNET = 42161;
+const CHAIN_TESTNET = 421614; // Arbitrum Sepolia
 const DEFAULT_ORIGIN = "http://localhost:8000";
 
 /** Decode a key string given as hex (even length) or base64/base64url. */
@@ -53,6 +58,24 @@ function decodeKey(raw: string): Uint8Array | null {
 function build(): Config {
   const errs: string[] = [];
   const env = (k: string) => Deno.env.get(k)?.trim() ?? "";
+
+  // Network selection: explicit OSTIUM_TESTNET wins; else auto-detect from the RPC
+  // URL (a "sepolia" host ⇒ testnet); else DEFAULT to Arbitrum Sepolia testnet.
+  // This drives chainId, the SDK subgraph, and the RPC/Pimlico defaults.
+  const rpcRaw = env("ARBITRUM_RPC_URL");
+  const testnetRaw = env("OSTIUM_TESTNET").toLowerCase();
+  const rpcLooksTestnet = /sepolia/i.test(rpcRaw);
+  const testnet = testnetRaw
+    ? testnetRaw === "true" || testnetRaw === "1"
+    : rpcRaw
+    ? rpcLooksTestnet
+    : true; // default network is testnet when neither OSTIUM_TESTNET nor a RPC is set
+  const chainId = testnet ? CHAIN_TESTNET : CHAIN_MAINNET;
+  if (testnetRaw && rpcRaw && testnet !== rpcLooksTestnet) {
+    console.warn(
+      `[env] OSTIUM_TESTNET says testnet=${testnet} but ARBITRUM_RPC_URL doesn't look like that network — honoring OSTIUM_TESTNET. Make sure the RPC matches.`,
+    );
+  }
 
   const dpk = env("DELEGATE_PRIVATE_KEY");
   if (!/^0x[0-9a-fA-F]{64}$/.test(dpk)) {
@@ -88,8 +111,8 @@ function build(): Config {
 
   return {
     delegatePrivateKey: dpk as Hex,
-    arbitrumRpcUrl: env("ARBITRUM_RPC_URL") || DEFAULT_RPC,
-    pimlicoUrl: env("PIMLICO_URL") || DEFAULT_PIMLICO,
+    arbitrumRpcUrl: rpcRaw || (testnet ? DEFAULT_RPC_TESTNET : DEFAULT_RPC_MAINNET),
+    pimlicoUrl: env("PIMLICO_URL") || PIMLICO_BASE + chainId,
     sessionSecret: new TextEncoder().encode(sessRaw),
     secretEncKey: encKey as Uint8Array,
     trustedProxyIps: env("TRUSTED_PROXY_IPS").split(",").map((s) => s.trim()).filter(Boolean),
@@ -97,7 +120,8 @@ function build(): Config {
     appOrigin,
     dbPath: env("DB_PATH") || "./data/app.db",
     port,
-    chainId: 42161,
+    testnet,
+    chainId,
   };
 }
 

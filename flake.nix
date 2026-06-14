@@ -27,6 +27,7 @@
           default = pkgs.mkShell {
             # deno >= 2.8 is required for the built-in node:sqlite module.
             packages = [
+              pkgs.git
               pkgs.deno
               pkgs.sqlite # `sqlite3` CLI for inspecting ./data/app.db
               pkgs.openssl # generate SESSION_SECRET / SECRET_ENC_KEY

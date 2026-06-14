@@ -6,10 +6,12 @@ import { sendTx } from "../components/wallet.ts";
 
 interface Props {
   traderAddr: string;
+  /** Configured network chainId (42161 mainnet / 421614 Arbitrum Sepolia). */
+  chainId: number;
 }
 
 /** Client-signed delegation onboarding: approve USDC + register the delegate Safe. */
-export default function DelegationFlow({ traderAddr }: Props) {
+export default function DelegationFlow({ traderAddr, chainId }: Props) {
   const safe = useSignal("");
   const usdcApproved = useSignal(false);
   const delegateSet = useSignal(false);
@@ -39,7 +41,7 @@ export default function DelegationFlow({ traderAddr }: Props) {
       if (b.error) throw new Error(b.error);
       const tx = which === "approve" ? b.approve : b.setDelegate;
       msg.value = "Confirm the transaction in your wallet…";
-      const hash = await sendTx(traderAddr as Address, tx);
+      const hash = await sendTx(traderAddr as Address, tx, chainId);
       await fetch("/api/delegation/confirm", {
         method: "POST",
         headers: { "content-type": "application/json" },
