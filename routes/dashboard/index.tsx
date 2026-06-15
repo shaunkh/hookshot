@@ -2,8 +2,10 @@ import { page } from "fresh";
 import { define } from "@/utils.ts";
 import { getConfig } from "@/lib/env.ts";
 import DelegationFlow from "@/islands/DelegationFlow.tsx";
+import OpenTrades from "@/islands/OpenTrades.tsx";
 import SignalFeed from "@/islands/SignalFeed.tsx";
 import BodyHelper from "@/islands/BodyHelper.tsx";
+import PineScript from "@/islands/PineScript.tsx";
 import MarketPrices from "@/islands/MarketPrices.tsx";
 
 export const handler = define.handlers({
@@ -32,9 +34,11 @@ export default define.page(function Dashboard(ctx) {
         Network: {getConfig().testnet ? "Arbitrum Sepolia (testnet)" : "Arbitrum One"}
       </p>
       <DelegationFlow traderAddr={user.trader_addr} chainId={getConfig().chainId} />
+      <OpenTrades testnet={getConfig().testnet} />
+      <SignalFeed testnet={getConfig().testnet} />
       <MarketPrices />
       <BodyHelper sizeUnit={user.size_unit} revealSecret={false} />
-      <SignalFeed testnet={getConfig().testnet} />
+      <PineScript sizeUnit={user.size_unit} />
     </div>
   );
 });

@@ -8,11 +8,15 @@
 @import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap");
 
 :root {
-  /* Backgrounds & borders */
-  --bkg: #141414;
+  /* Backgrounds & borders. Page sits on near-black for stronger contrast against
+     the elevated panels; panels use a solid dark surface that "pops" off it. */
+  --bkg: #0a0a0a; /* deeper than _black for contrast */
+  --surface: #161616; /* solid panel surface, lifted off the page */
+  --surface-2: #101010; /* inset cells (stat cards, headers) */
   --elevated: rgba(245, 245, 245, 0.05); /* elevatedBkg = whiteT5 */
   --border: rgba(245, 245, 245, 0.08);
-  --border-strong: rgba(245, 245, 245, 0.12);
+  --border-strong: rgba(245, 245, 245, 0.14);
+  --border-orange: rgba(255, 90, 25, 0.45); /* _ostiumOrange accent edge */
 
   /* Text */
   --text: #f5f5f5;
@@ -39,6 +43,7 @@
   --tag-positive-bkg: #145034; /* _green15 */
   --tag-negative-bkg: #5b1a22; /* _red15 */
   --tag-warning-bkg: #5b5324; /* _yellow15 */
+  --orange-tag-bkg: #5b2916; /* _ostiumOrange15 - in-flight/resting orders */
 
   --radius: 6px;
   --radius-lg: 16px;
@@ -100,8 +105,8 @@ h4 {
 }
 
 .panel {
-  background: var(--elevated);
-  border: 1px solid var(--border);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
   padding: 16px 20px;
   margin-bottom: 16px;
@@ -247,6 +252,10 @@ td {
   background: var(--input-bkg);
   z-index: 1;
 }
+/* Orange-edged scroll container — used to make the "orders in flight" list pop. */
+.table-scroll.accent-orange {
+  border-color: var(--border-orange);
+}
 .table-scroll::-webkit-scrollbar {
   width: 10px;
 }
@@ -290,4 +299,77 @@ td {
 .badge.received {
   background: var(--tag-warning-bkg);
   color: var(--warning);
+}
+
+/* Direction tags — sacred trading colours (green long / red short). */
+.badge.long {
+  background: var(--tag-positive-bkg);
+  color: var(--positive);
+}
+.badge.short {
+  background: var(--tag-negative-bkg);
+  color: var(--negative);
+}
+
+/* In-flight / resting orders + a pending submission — brand orange, "working". */
+.badge.inflight,
+.badge.resting,
+.badge.pending {
+  background: var(--orange-tag-bkg);
+  color: var(--orange-link);
+}
+/* A leg broadcast on-chain, awaiting the oracle fill. */
+.badge.submitted {
+  background: var(--tag-warning-bkg);
+  color: var(--warning);
+}
+.badge.cancelled {
+  background: var(--tag-negative-bkg);
+  color: var(--negative);
+}
+
+/* Orange-accented section headings — a thin brand bar to the left. */
+h3.accent,
+h4.accent {
+  border-left: 3px solid var(--orange);
+  padding-left: 10px;
+}
+
+/* Summary stat strip (account value, PnL, collateral, notional). */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-top: 12px;
+}
+@media (max-width: 720px) {
+  .stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+}
+.stat-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-vdim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.stat-value {
+  font-size: 20px;
+  line-height: 26px;
+  font-weight: 600;
+}
+
+/* Subtle row hover for data tables (design system: elevatedBkg highlight). */
+tbody tr:hover {
+  background: var(--elevated);
 }

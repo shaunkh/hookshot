@@ -1,5 +1,5 @@
 import { Fragment } from "preact";
-import { useSignal } from "@preact/signals";
+import { useComputed, useSignal } from "@preact/signals";
 import { useEffect } from "preact/hooks";
 import { IS_BROWSER } from "fresh/runtime";
 
@@ -12,6 +12,18 @@ interface Sig {
   reason: string | null;
   sourceIp: string;
   receivedAt: number;
+}
+
+/** An order still working on-chain: a pending market order or a resting limit/stop. */
+interface InflightOrder {
+  key: string;
+  kind: "market" | "limit";
+  symbol: string;
+  side: "B" | "S";
+  type: string; // "Open"/"Close" (market) or "Limit"/"Stop"
+  price: string; // trigger (limit/stop) or requested px (market)
+  size: string;
+  at: number; // unix ms
 }
 
 interface OnChain {
@@ -37,6 +49,49 @@ function short(h: string): string {
   return h.length > 14 ? `${h.slice(0, 8)}…${h.slice(-6)}` : h;
 }
 
+/** Price with precision adapted to magnitude (BTC vs EUR/USD). */
+function px(v: string): string {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return v;
+  const a = Math.abs(n);
+  const dp = a >= 100 ? 2 : a >= 1 ? 4 : 6;
+  return n.toLocaleString("en-US", { minimumFractionDigits: dp, maximumFractionDigits: dp });
+}
+
+/** Base-asset size, trimmed to ≤4 dp. */
+function sz(v: string): string {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return v;
+  return n.toLocaleString("en-US", { maximumFractionDigits: 4 });
+}
+
+// Shapes returned by /api/account for the orders-in-flight view.
+interface ApiOpenOrder {
+  pairId: string;
+  symbol: string;
+  side: "B" | "S";
+  idx: number;
+  orderType: string;
+  triggerPx: string;
+  size: string;
+  createdAt: number;
+}
+interface ApiPendingOrder {
+  orderId: string;
+  symbol: string;
+  side: "B" | "S";
+  action: string;
+  orderType: string;
+  price: string;
+  size: string;
+  initiatedAt: number;
+}
+interface ApiAccountOk {
+  positions: boolean;
+  openOrders: boolean;
+  pendingOrders: boolean;
+}
+
 interface Props {
   /** Whether the app is on Arbitrum Sepolia (picks the explorer host). */
   testnet?: boolean;
@@ -52,10 +107,49 @@ export default function SignalFeed({ testnet = true }: Props) {
   const signals = useSignal<Sig[]>([]);
   const expanded = useSignal<string>("");
   const details = useSignal<Record<string, Tx[]>>({});
+  const inflight = useSignal<InflightOrder[]>([]);
+  // True when an orders leg failed on the last fetch (list may be stale).
+  const inflightStale = useSignal(false);
 
   async function load() {
     const r = await fetch("/api/signals?limit=100");
     if (r.ok) signals.value = (await r.json()).signals;
+  }
+
+  async function loadInflight() {
+    try {
+      const r = await fetch("/api/account");
+      if (!r.ok) return;
+      const a = await r.json() as {
+        openOrders?: ApiOpenOrder[];
+        pendingOrders?: ApiPendingOrder[];
+        ok?: ApiAccountOk;
+      };
+      const market: InflightOrder[] = (a.pendingOrders ?? []).map((o) => ({
+        key: `m-${o.orderId}`,
+        kind: "market",
+        symbol: o.symbol,
+        side: o.side,
+        type: o.action, // Open / Close
+        price: o.price,
+        size: o.size,
+        at: o.initiatedAt,
+      }));
+      const limits: InflightOrder[] = (a.openOrders ?? []).map((o) => ({
+        key: `l-${o.pairId}-${o.idx}`,
+        kind: "limit",
+        symbol: o.symbol,
+        side: o.side,
+        type: o.orderType, // Limit / Stop
+        price: o.triggerPx,
+        size: o.size,
+        at: o.createdAt,
+      }));
+      inflight.value = [...market, ...limits].sort((x, y) => y.at - x.at);
+      inflightStale.value = a.ok ? !a.ok.openOrders || !a.ok.pendingOrders : false;
+    } catch {
+      // best-effort: leave the last view in place
+    }
   }
 
   async function loadDetail(id: string) {
@@ -75,159 +169,240 @@ export default function SignalFeed({ testnet = true }: Props) {
   useEffect(() => {
     if (!IS_BROWSER) return;
     load();
+    loadInflight();
+    // Orders settle on the oracle's clock, not just on signal events, so poll.
+    const t = setInterval(loadInflight, 6000);
     const es = new EventSource("/api/events");
-    es.onmessage = () => {
+    es.onmessage = (e) => {
+      // Only react to real signal transitions (skip the connect "hello").
+      try {
+        if (JSON.parse(e.data)?.type !== "signal") return;
+      } catch {
+        return;
+      }
       load();
+      loadInflight();
       if (expanded.value) loadDetail(expanded.value); // refresh open detail too
     };
     es.onerror = () => {/* browser auto-reconnects */};
-    return () => es.close();
+    return () => {
+      clearInterval(t);
+      es.close();
+    };
   }, []);
 
   async function refresh() {
-    await load();
+    await Promise.all([load(), loadInflight()]);
     if (expanded.value) await loadDetail(expanded.value);
   }
+
+  const inflightCount = useComputed(() => inflight.value.length);
 
   return (
     <div class="panel">
       <div class="row" style="justify-content:space-between">
-        <h3>Signals (live)</h3>
+        <h3 class="accent">Signals &amp; orders</h3>
         <button type="button" class="secondary" onClick={refresh}>Refresh</button>
       </div>
-      <table>
-        <thead>
-          <tr>
-            <th>time</th>
-            <th>action</th>
-            <th>pair</th>
-            <th>dir</th>
-            <th>status</th>
-            <th>detail</th>
-            <th>from IP</th>
-          </tr>
-        </thead>
-        <tbody>
-          {signals.value.map((s) => {
-            const isOpen = expanded.value === s.id;
-            const txs = details.value[s.id];
-            return (
-              <Fragment key={s.id}>
-                <tr onClick={() => toggle(s.id)} style="cursor:pointer">
-                  <td class="mono">
-                    {isOpen ? "▾ " : "▸ "}
-                    {new Date(s.receivedAt).toLocaleTimeString()}
-                  </td>
-                  <td>{s.action ?? "-"}</td>
-                  <td>{s.symbol ?? "-"}</td>
-                  <td>{s.side === "B" ? "long" : s.side === "S" ? "short" : "-"}</td>
-                  <td>
-                    <span class={`badge ${s.status}`}>{s.status}</span>
-                  </td>
-                  <td class="muted">{s.reason ?? ""}</td>
-                  <td class="mono muted">{s.sourceIp}</td>
-                </tr>
-                {isOpen
-                  ? (
-                    <tr>
-                      <td colSpan={7} style="background:var(--input-bkg)">
-                        {txs === undefined
-                          ? <span class="muted">loading on-chain execution…</span>
-                          : txs.length === 0
-                          ? (
-                            <span class="muted">
-                              No on-chain txs (signal was {s.status} before submission).
-                            </span>
-                          )
-                          : (
-                            <table>
-                              <thead>
-                                <tr>
-                                  <th>leg</th>
-                                  <th>submission</th>
-                                  <th>on-chain</th>
-                                  <th>order id</th>
-                                  <th>fill px</th>
-                                  <th>pnl</th>
-                                  <th>tx</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {txs.map((t) => {
-                                  const oc = t.onchain;
-                                  const ocBadge = oc
-                                    ? oc.status === "executed"
-                                      ? "filled"
-                                      : oc.status === "cancelled"
-                                      ? "failed"
-                                      : "executing"
-                                    : "";
-                                  return (
-                                    <tr key={t.seq}>
-                                      <td>
-                                        {t.kind}
-                                        {t.idx !== null ? ` #${t.idx}` : ""}
-                                      </td>
-                                      <td>
-                                        <span class={`badge ${t.status}`}>{t.status}</span>
-                                        {t.error
-                                          ? <div class="muted">{t.error}</div>
-                                          : null}
-                                      </td>
-                                      <td>
-                                        {oc
-                                          ? (
-                                            <>
-                                              <span class={`badge ${ocBadge}`}>{oc.status}</span>
-                                              {oc.cancelReason
-                                                ? <div class="muted">{oc.cancelReason}</div>
-                                                : null}
-                                            </>
-                                          )
-                                          : t.txHash
-                                          ? <span class="muted">awaiting oracle…</span>
-                                          : <span class="muted">-</span>}
-                                      </td>
-                                      <td class="mono">{oc?.orderId ?? "-"}</td>
-                                      <td class="mono">{oc && oc.status === "executed" ? oc.price : "-"}</td>
-                                      <td class="mono">
-                                        {oc && oc.status === "executed" && oc.closedPnl !== "0"
-                                          ? oc.closedPnl
-                                          : "-"}
-                                      </td>
-                                      <td class="mono">
-                                        {t.txHash ? <TxLink hash={t.txHash} /> : "-"}
-                                        {oc && oc.executedTx && oc.executedTx !== t.txHash
-                                          ? (
-                                            <>
-                                              {" "}
-                                              <TxLink hash={oc.executedTx} label="(exec)" />
-                                            </>
-                                          )
-                                          : null}
-                                      </td>
-                                    </tr>
-                                  );
-                                })}
-                              </tbody>
-                            </table>
-                          )}
-                      </td>
-                    </tr>
-                  )
-                  : null}
-              </Fragment>
-            );
-          })}
-          {signals.value.length === 0
-            ? (
-              <tr>
-                <td colSpan={7} class="muted">No signals yet - POST one to a webhook.</td>
-              </tr>
-            )
+
+      <div class="row" style="justify-content:space-between;margin-top:4px">
+        <h4 style="margin:0">
+          Orders in flight{" "}
+          {inflightCount.value > 0
+            ? <span class="badge inflight">{inflightCount.value}</span>
             : null}
-        </tbody>
-      </table>
+        </h4>
+        {inflightStale.value ? <span class="muted">⚠ couldn't refresh — last-known</span> : null}
+      </div>
+      <div class="table-scroll accent-orange" style="max-height:228px;margin-top:8px">
+        <table style="table-layout:fixed">
+          <colgroup>
+            <col style="width:14%" />
+            <col style="width:11%" />
+            <col style="width:13%" />
+            <col style="width:18%" />
+            <col style="width:16%" />
+            <col style="width:28%" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>pair</th>
+              <th>dir</th>
+              <th>type</th>
+              <th>trigger / px</th>
+              <th>size</th>
+              <th>status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {inflight.value.map((o) => (
+              <tr key={o.key}>
+                <td>{o.symbol}</td>
+                <td>
+                  <span class={`badge ${o.side === "B" ? "long" : "short"}`}>
+                    {o.side === "B" ? "LONG" : "SHORT"}
+                  </span>
+                </td>
+                <td class="muted">{o.type}</td>
+                <td class="mono">{px(o.price)}</td>
+                <td class="mono">{sz(o.size)}</td>
+                <td>
+                  <span class={`badge ${o.kind === "limit" ? "resting" : "inflight"}`}>
+                    {o.kind === "limit" ? "resting" : "in flight"}
+                  </span>
+                </td>
+              </tr>
+            ))}
+            {inflight.value.length === 0
+              ? (
+                <tr>
+                  <td colSpan={6} class="muted">
+                    No orders in flight. Pending market orders and resting limit/stop orders appear
+                    here.
+                  </td>
+                </tr>
+              )
+              : null}
+          </tbody>
+        </table>
+      </div>
+
+      <h4 style="margin-top:20px">Webhook calls</h4>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>time</th>
+              <th>action</th>
+              <th>pair</th>
+              <th>dir</th>
+              <th>status</th>
+              <th>detail</th>
+              <th>from IP</th>
+            </tr>
+          </thead>
+          <tbody>
+            {signals.value.map((s) => {
+              const isOpen = expanded.value === s.id;
+              const txs = details.value[s.id];
+              return (
+                <Fragment key={s.id}>
+                  <tr onClick={() => toggle(s.id)} style="cursor:pointer">
+                    <td class="mono">
+                      {isOpen ? "▾ " : "▸ "}
+                      {new Date(s.receivedAt).toLocaleTimeString()}
+                    </td>
+                    <td>{s.action ?? "-"}</td>
+                    <td>{s.symbol ?? "-"}</td>
+                    <td>{s.side === "B" ? "long" : s.side === "S" ? "short" : "-"}</td>
+                    <td>
+                      <span class={`badge ${s.status}`}>{s.status}</span>
+                    </td>
+                    <td class="muted">{s.reason ?? ""}</td>
+                    <td class="mono muted">{s.sourceIp}</td>
+                  </tr>
+                  {isOpen
+                    ? (
+                      <tr>
+                        <td colSpan={7} style="background:var(--input-bkg)">
+                          {txs === undefined
+                            ? <span class="muted">loading on-chain execution…</span>
+                            : txs.length === 0
+                            ? (
+                              <span class="muted">
+                                No on-chain txs (signal was {s.status} before submission).
+                              </span>
+                            )
+                            : (
+                              <table>
+                                <thead>
+                                  <tr>
+                                    <th>leg</th>
+                                    <th>submission</th>
+                                    <th>on-chain</th>
+                                    <th>order id</th>
+                                    <th>fill px</th>
+                                    <th>pnl</th>
+                                    <th>tx</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {txs.map((t) => {
+                                    const oc = t.onchain;
+                                    const ocBadge = oc
+                                      ? oc.status === "executed"
+                                        ? "filled"
+                                        : oc.status === "cancelled"
+                                        ? "failed"
+                                        : "executing"
+                                      : "";
+                                    return (
+                                      <tr key={t.seq}>
+                                        <td>
+                                          {t.kind}
+                                          {t.idx !== null ? ` #${t.idx}` : ""}
+                                        </td>
+                                        <td>
+                                          <span class={`badge ${t.status}`}>{t.status}</span>
+                                          {t.error ? <div class="muted">{t.error}</div> : null}
+                                        </td>
+                                        <td>
+                                          {oc
+                                            ? (
+                                              <>
+                                                <span class={`badge ${ocBadge}`}>{oc.status}</span>
+                                                {oc.cancelReason
+                                                  ? <div class="muted">{oc.cancelReason}</div>
+                                                  : null}
+                                              </>
+                                            )
+                                            : t.txHash
+                                            ? <span class="muted">awaiting oracle…</span>
+                                            : <span class="muted">-</span>}
+                                        </td>
+                                        <td class="mono">{oc?.orderId ?? "-"}</td>
+                                        <td class="mono">
+                                          {oc && oc.status === "executed" ? oc.price : "-"}
+                                        </td>
+                                        <td class="mono">
+                                          {oc && oc.status === "executed" && oc.closedPnl !== "0"
+                                            ? oc.closedPnl
+                                            : "-"}
+                                        </td>
+                                        <td class="mono">
+                                          {t.txHash ? <TxLink hash={t.txHash} /> : "-"}
+                                          {oc && oc.executedTx && oc.executedTx !== t.txHash
+                                            ? (
+                                              <>
+                                                {" "}
+                                                <TxLink hash={oc.executedTx} label="(exec)" />
+                                              </>
+                                            )
+                                            : null}
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            )}
+                        </td>
+                      </tr>
+                    )
+                    : null}
+                </Fragment>
+              );
+            })}
+            {signals.value.length === 0
+              ? (
+                <tr>
+                  <td colSpan={7} class="muted">No signals yet - POST one to a webhook.</td>
+                </tr>
+              )
+              : null}
+          </tbody>
+        </table>
+      </div>
       <p class="muted">Click a row to see its on-chain execution.</p>
     </div>
   );

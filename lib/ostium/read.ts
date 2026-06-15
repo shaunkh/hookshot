@@ -10,7 +10,7 @@ import type { Address, Hex } from "viem";
 import { getReader } from "./clients.ts";
 import { getMarketStats } from "./marketStats.ts";
 import { withRpcRetry } from "../rpc.ts";
-import { parseSymbol } from "../format.ts";
+import { cmpStr, divStr, parseSymbol } from "../format.ts";
 import type { Side } from "../types.ts";
 import type { SlotSize } from "./pricing.ts";
 
@@ -154,4 +154,233 @@ export async function getOpenLimitOrders(
       o.side === side &&
       (!orderType || o.orderType.toLowerCase() === orderType),
   );
+}
+
+// ── Account snapshot (dashboard) ──────────────────────────────────────────────
+//
+// A trader's live view: open Positions (with margin summary), active limit/stop
+// orders, and pending market orders awaiting the oracle ("orders in flight").
+// Each leg is best-effort: if one subgraph query fails the others still return,
+// so a partial outage degrades gracefully rather than blanking the panels.
+
+/** One open Position, flattened to display strings (no idx-level Slot detail). */
+export interface UiPosition {
+  pairId: string;
+  symbol: string; // "BTC/USD"
+  side: Side; // "B" long / "S" short
+  size: string; // base-asset units (magnitude)
+  entryPx: string;
+  markPx: string; // current mid (= notional / size)
+  leverage: string;
+  notional: string; // USD
+  collateral: string; // USD
+  unrealizedPnl: string; // USD, after rollover
+  roe: string; // returnOnEquity (fraction)
+  liquidationPx: string;
+  tpPx: string | null;
+  slPx: string | null;
+  openTimestamp: number; // unix ms
+  idx: number;
+}
+
+/** Aggregated margin metrics across all open Positions. */
+export interface UiMargin {
+  accountValue: string;
+  collateral: string;
+  notional: string;
+  unrealizedPnl: string;
+}
+
+/** An active limit/stop order resting on the book ("in flight"). */
+export interface UiOpenOrder {
+  pairId: string;
+  symbol: string;
+  side: Side;
+  idx: number;
+  orderType: string; // "Limit" | "Stop"
+  triggerPx: string;
+  size: string;
+  tpPx: string | null;
+  slPx: string | null;
+  createdAt: number; // unix ms
+}
+
+/**
+ * A pending MARKET order submitted on-chain but not yet settled by the oracle.
+ * Limit/stop orders are surfaced separately as UiOpenOrder, so this is filtered
+ * to `Market` type to avoid double-listing a triggering limit (which can briefly
+ * appear in both getOrders({isPending}) and getOpenOrders). A cancelled order is
+ * no longer pending, so it never appears here — its outcome shows on the matching
+ * webhook-call's on-chain detail instead.
+ */
+export interface UiPendingOrder {
+  orderId: string;
+  pairId: string;
+  symbol: string;
+  side: Side;
+  action: string; // "Open" | "Close" | ...
+  orderType: string; // always "Market"
+  price: string;
+  size: string;
+  notional: string;
+  initiatedAt: number; // unix ms
+}
+
+/**
+ * Per-leg freshness. `false` means that subgraph query failed on the latest fetch
+ * (the data shown is last-known/stale or empty) — the UI must flag this rather
+ * than present it as a confident "nothing open".
+ */
+export interface AccountOk {
+  positions: boolean;
+  openOrders: boolean;
+  pendingOrders: boolean;
+}
+
+export interface AccountSnapshot {
+  positions: UiPosition[];
+  margin: UiMargin;
+  openOrders: UiOpenOrder[];
+  pendingOrders: UiPendingOrder[];
+  ok: AccountOk;
+}
+
+const ZERO_MARGIN: UiMargin = {
+  accountValue: "0",
+  collateral: "0",
+  notional: "0",
+  unrealizedPnl: "0",
+};
+
+const ACCOUNT_TTL_MS = 3_000;
+const accountCache = new Map<string, { at: number; snap: AccountSnapshot }>();
+
+interface AccountSlices {
+  positions: UiPosition[];
+  margin: UiMargin;
+  openOrders: UiOpenOrder[];
+  pendingOrders: UiPendingOrder[];
+}
+// Last successful value of each leg, so a transient subgraph failure shows
+// last-known (flagged stale via `ok`) data rather than a misleading empty view.
+const lastGood = new Map<string, AccountSlices>();
+
+/**
+ * The trader's live account view for the dashboard: open Positions + margin
+ * summary, active limit/stop orders, and pending market orders. Cached for a
+ * few seconds so the two dashboard panels that consume it share one round-trip.
+ *
+ * Each leg is independent: on failure it reuses the last-known value and sets the
+ * matching `ok` flag false, so the UI can show a staleness warning instead of a
+ * confident (and dangerous) "nothing open".
+ */
+export async function readAccountSnapshot(trader: string): Promise<AccountSnapshot> {
+  const key = trader.toLowerCase();
+  const now = Date.now();
+  const cached = accountCache.get(key);
+  if (cached && now - cached.at < ACCOUNT_TTL_MS) return cached.snap;
+
+  const reader = await getReader();
+  const user = trader as Address;
+  const prev = lastGood.get(key);
+
+  let positions = prev?.positions ?? [];
+  let margin = prev?.margin ?? ZERO_MARGIN;
+  let positionsOk = false;
+  try {
+    const res = await withRpcRetry(() => reader.getOpenPositions({ user }));
+    positions = res.pairPositions.map(({ position: p }) => {
+      let markPx = p.entryPx;
+      try {
+        if (cmpStr(p.szi, "0") > 0) markPx = divStr(p.ntl, p.szi, 8);
+      } catch {
+        // keep entry price as the fallback mark
+      }
+      return {
+        pairId: p.pairId,
+        symbol: `${p.pairFrom}/${p.pairTo}`,
+        side: p.side,
+        size: p.szi,
+        entryPx: p.entryPx,
+        markPx,
+        leverage: p.leverage,
+        notional: p.ntl,
+        collateral: p.collateralUsed,
+        unrealizedPnl: p.unrealizedPnl,
+        roe: p.returnOnEquity,
+        liquidationPx: p.liquidationPx,
+        tpPx: p.tpPx ?? null,
+        slPx: p.slPx ?? null,
+        openTimestamp: p.openTimestamp,
+        idx: p.idx,
+      };
+    });
+    const m = res.marginSummary;
+    margin = {
+      accountValue: m.accountValue,
+      collateral: m.totalCollateralUsed,
+      notional: m.totalNtlPos,
+      unrealizedPnl: m.totalRawPnlUsd,
+    };
+    positionsOk = true;
+  } catch {
+    // keep prev positions/margin; positionsOk stays false
+  }
+
+  let openOrders = prev?.openOrders ?? [];
+  let openOrdersOk = false;
+  try {
+    const orders = await withRpcRetry(() => reader.getOpenOrders({ user }));
+    openOrders = orders.map((o) => ({
+      pairId: o.pairId,
+      symbol: `${o.pairFrom}/${o.pairTo}`,
+      side: o.side,
+      idx: o.idx,
+      orderType: o.orderType,
+      triggerPx: o.limitPx,
+      size: o.szi,
+      tpPx: o.tpPx ?? null,
+      slPx: o.slPx ?? null,
+      createdAt: o.timestamp,
+    }));
+    openOrdersOk = true;
+  } catch {
+    // keep prev openOrders
+  }
+
+  let pendingOrders = prev?.pendingOrders ?? [];
+  let pendingOrdersOk = false;
+  try {
+    const orders = await withRpcRetry(() => reader.getOrders({ user, isPending: true }));
+    // Market only — limit/stop orders are surfaced as openOrders, and a pending
+    // limit would otherwise be listed twice (here and in openOrders).
+    pendingOrders = orders
+      .filter((o) => o.type === "Market")
+      .map((o) => ({
+        orderId: o.oid,
+        pairId: o.pairId,
+        symbol: `${o.pairFrom}/${o.pairTo}`,
+        side: o.side,
+        action: o.action,
+        orderType: o.type,
+        price: o.px,
+        size: o.szi,
+        notional: o.ntl,
+        initiatedAt: o.initiatedTime,
+      }));
+    pendingOrdersOk = true;
+  } catch {
+    // keep prev pendingOrders
+  }
+
+  lastGood.set(key, { positions, margin, openOrders, pendingOrders });
+  const snap: AccountSnapshot = {
+    positions,
+    margin,
+    openOrders,
+    pendingOrders,
+    ok: { positions: positionsOk, openOrders: openOrdersOk, pendingOrders: pendingOrdersOk },
+  };
+  accountCache.set(key, { at: now, snap });
+  return snap;
 }
