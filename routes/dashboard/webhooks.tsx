@@ -1,5 +1,6 @@
 import { page } from "fresh";
 import { define } from "@/utils.ts";
+import DashboardHeader from "@/components/DashboardHeader.tsx";
 import WebhookManager from "@/islands/WebhookManager.tsx";
 import BodyHelper from "@/islands/BodyHelper.tsx";
 
@@ -14,10 +15,7 @@ export default define.page(function Webhooks(ctx) {
   const user = ctx.state.user!;
   return (
     <div class="container">
-      <h1>Webhooks</h1>
-      <p>
-        <a href="/dashboard">← back to dashboard</a>
-      </p>
+      <DashboardHeader user={user} active="/dashboard/webhooks" />
       <WebhookManager />
       <BodyHelper sizeUnit={user.size_unit} />
     </div>

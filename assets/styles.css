@@ -74,6 +74,55 @@ a:hover {
   text-decoration: underline;
 }
 
+/* Dashboard tab nav. Inactive = dimmed text on transparent; hover lifts to an
+ * elevated surface; the current page gets a filled surface + an orange edge so
+ * it's unmistakable which page you're on. */
+.dash-header {
+  margin-bottom: 16px;
+}
+.nav {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+/* Segmented tab control: the enclosing track makes it obvious all three are
+ * tabs, and the active one is filled brand-orange so the current page is
+ * unmistakable. */
+.tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+}
+.nav-link {
+  color: var(--text-dim);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+.nav-link:hover {
+  background: var(--elevated);
+  color: var(--text);
+  text-decoration: none;
+}
+.nav-link.active {
+  background: var(--orange);
+  color: #141414;
+  border-color: var(--orange);
+}
+.nav-link.active:hover {
+  background: var(--orange-press);
+  color: #141414;
+}
+
 h1 {
   font-size: 24px;
   line-height: 30px;
@@ -158,6 +207,12 @@ button.danger:hover {
   background: #b92134; /* _red35 */
 }
 
+/* Compact button for table rows (design system: 32px compact control). */
+button.compact {
+  padding: 4px 10px;
+  font-size: 13px;
+}
+
 input,
 select {
   background: var(--input-bkg);
@@ -234,6 +289,18 @@ td {
 
 .muted {
   color: var(--text-dim);
+}
+
+/* Prominent inline error notice (e.g. SIWE domain / APP_ORIGIN mismatch). */
+.notice-error {
+  color: var(--negative);
+  background: var(--tag-negative-bkg);
+  border: 1px solid var(--negative);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin-top: 12px;
+  font-size: 14px;
+  line-height: 20px;
 }
 
 /* Vertically-scrollable table body (~10 rows) with a pinned header and an
@@ -372,4 +439,44 @@ h4.accent {
 /* Subtle row hover for data tables (design system: elevatedBkg highlight). */
 tbody tr:hover {
   background: var(--elevated);
+}
+
+/* Reorderable dashboard sections — drag the handle; order persists (localStorage).
+ * Reordering is done via flexbox `order` so the islands inside never move in the
+ * DOM (they keep their live state). */
+.dash-sections {
+  display: flex;
+  flex-direction: column;
+}
+.dash-section.dragging {
+  opacity: 0.5;
+}
+.drag-handle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: grab;
+  user-select: none;
+  color: var(--text-vdim);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  margin-bottom: 6px;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+.drag-handle:hover {
+  color: var(--text-dim);
+  background: var(--elevated);
+  border-color: var(--border);
+}
+.drag-handle:active {
+  cursor: grabbing;
+}
+.grip {
+  font-size: 14px;
+  line-height: 1;
 }

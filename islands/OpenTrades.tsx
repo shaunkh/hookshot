@@ -69,7 +69,10 @@ function px(v: string | null): string {
   if (!Number.isFinite(n)) return "-";
   const a = Math.abs(n);
   const dp = a >= 100 ? 2 : a >= 1 ? 4 : 6;
-  return n.toLocaleString("en-US", { minimumFractionDigits: dp, maximumFractionDigits: dp });
+  return n.toLocaleString("en-US", {
+    minimumFractionDigits: dp,
+    maximumFractionDigits: dp,
+  });
 }
 
 /** Base-asset size, trimmed to ≤4 dp. */
@@ -138,7 +141,9 @@ export default function OpenTrades(_props: Props) {
       }
       load(); // a fill changes the open set
     };
-    es.onerror = () => {/* browser auto-reconnects */};
+    es.onerror = () => {
+      /* browser auto-reconnects */
+    };
     return () => {
       clearInterval(t);
       es.close();
@@ -147,11 +152,11 @@ export default function OpenTrades(_props: Props) {
 
   // Show real figures only when the positions leg is fresh and there's something
   // open; otherwise neutral "—" so a stale/empty read never reads as a hard "$0".
-  const statReady = useComputed(() =>
-    !stale.value && margin.value !== null && positions.value.length > 0
+  const statReady = useComputed(
+    () => !stale.value && margin.value !== null && positions.value.length > 0,
   );
   const pnlClass = useComputed(() =>
-    statReady.value && margin.value ? cls(margin.value.unrealizedPnl) : "muted"
+    statReady.value && margin.value ? cls(margin.value.unrealizedPnl) : "muted",
   );
   const m = (pick: (x: Margin) => string) =>
     statReady.value && margin.value ? pick(margin.value) : null;
@@ -161,17 +166,17 @@ export default function OpenTrades(_props: Props) {
       <div class="row" style="justify-content:space-between">
         <h3 class="accent">Open trades</h3>
         <span class="muted">
-          {positions.value.length} {positions.value.length === 1 ? "position" : "positions"}
+          {positions.value.length}{" "}
+          {positions.value.length === 1 ? "position" : "positions"}
         </span>
       </div>
 
-      {stale.value
-        ? (
-          <p class="badge inflight" style="display:inline-block">
-            ⚠ Couldn't reach Ostium — showing last-known data, which may be out of date.
-          </p>
-        )
-        : null}
+      {stale.value ? (
+        <p class="badge inflight" style="display:inline-block">
+          ⚠ Couldn't reach Ostium — showing last-known data, which may be out of
+          date.
+        </p>
+      ) : null}
 
       <div class="stats">
         <div class="stat">
@@ -181,7 +186,9 @@ export default function OpenTrades(_props: Props) {
         <div class="stat">
           <span class="stat-label">Unrealized PnL</span>
           <span class={`stat-value mono ${pnlClass.value}`}>
-            {statReady.value && margin.value ? signedUsd(margin.value.unrealizedPnl) : "—"}
+            {statReady.value && margin.value
+              ? signedUsd(margin.value.unrealizedPnl)
+              : "—"}
           </span>
         </div>
         <div class="stat">
@@ -238,34 +245,35 @@ export default function OpenTrades(_props: Props) {
                 <td class="mono" style="font-size:13px">
                   <span class="neg">{px(p.liquidationPx)}</span>
                   <div class="muted">
-                    TP {p.tpPx ? px(p.tpPx) : "—"} · SL {p.slPx ? px(p.slPx) : "—"}
+                    TP {p.tpPx ? px(p.tpPx) : "—"} · SL{" "}
+                    {p.slPx ? px(p.slPx) : "—"}
                   </div>
                 </td>
                 <td class={`mono ${cls(p.unrealizedPnl)}`}>
                   {signedUsd(p.unrealizedPnl)}
-                  <div class="muted" style="font-size:12px">{roePct(p.roe)}</div>
+                  <div class="muted" style="font-size:12px">
+                    {roePct(p.roe)}
+                  </div>
                 </td>
               </tr>
             ))}
-            {!loaded.value
-              ? (
-                <tr>
-                  <td colSpan={7} class="muted">loading open trades…</td>
-                </tr>
-              )
-              : positions.value.length === 0
-              ? (
-                <tr>
-                  <td colSpan={7} class="muted">
-                    No open trades. Positions opened by your signals appear here.
-                  </td>
-                </tr>
-              )
-              : null}
+            {!loaded.value ? (
+              <tr>
+                <td colSpan={7} class="muted">
+                  loading open trades…
+                </td>
+              </tr>
+            ) : positions.value.length === 0 ? (
+              <tr>
+                <td colSpan={7} class="muted">
+                  No open trades. Positions opened by your signals appear here.
+                </td>
+              </tr>
+            ) : null}
           </tbody>
         </table>
       </div>
-      <p class="muted">Live positions for your trader address, streamed from Ostium.</p>
+      <p class="muted">Live positions</p>
     </div>
   );
 }

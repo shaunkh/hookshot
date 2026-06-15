@@ -17,6 +17,7 @@ import {
   type SubmissionResult,
 } from "@ostium/builder-sdk";
 import { getDelegatedClient } from "./clients.ts";
+import { explainContractError } from "./errors.ts";
 import { getOpenLimitOrders, getSlots, livePrice } from "./read.ts";
 import {
   aggregate,
@@ -45,7 +46,9 @@ interface Leg {
 type Plan = { ok: true; legs: Leg[] } | { ok: false; reason: string };
 
 function errMessage(e: unknown): string {
-  return e instanceof Error ? e.message : String(e);
+  // Decode Ostium contract reverts (e.g. NoTradeFound, WrongLeverage) into a
+  // readable message; falls back to the raw error text for everything else.
+  return explainContractError(e);
 }
 
 async function buildPlan(vr: ValidatedOk, user: UserRow): Promise<Plan> {

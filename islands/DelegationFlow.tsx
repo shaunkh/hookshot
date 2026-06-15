@@ -2,7 +2,7 @@ import { useSignal } from "@preact/signals";
 import { useEffect } from "preact/hooks";
 import { IS_BROWSER } from "fresh/runtime";
 import type { Address } from "viem";
-import { sendTx } from "../components/wallet.ts";
+import { sendTx, startWalletDiscovery } from "../components/wallet.ts";
 
 interface Props {
   traderAddr: string;
@@ -30,7 +30,9 @@ export default function DelegationFlow({ traderAddr, chainId }: Props) {
     }
   }
   useEffect(() => {
-    if (IS_BROWSER) refresh();
+    if (!IS_BROWSER) return;
+    startWalletDiscovery(); // so sendTx uses the same EIP-6963 wallet picked at sign-in
+    refresh();
   }, []);
 
   async function runStep(which: "approve" | "setDelegate") {

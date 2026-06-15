@@ -24,6 +24,10 @@ interface InflightOrder {
   price: string; // trigger (limit/stop) or requested px (market)
   size: string;
   at: number; // unix ms
+  // Cancel identity: (pairId, idx) for limit/stop; orderId for market.
+  pairId: string;
+  idx: number | null;
+  orderId: string | null;
 }
 
 interface OnChain {
@@ -78,6 +82,7 @@ interface ApiOpenOrder {
 }
 interface ApiPendingOrder {
   orderId: string;
+  pairId: string;
   symbol: string;
   side: "B" | "S";
   action: string;
@@ -110,6 +115,9 @@ export default function SignalFeed({ testnet = true }: Props) {
   const inflight = useSignal<InflightOrder[]>([]);
   // True when an orders leg failed on the last fetch (list may be stale).
   const inflightStale = useSignal(false);
+  // Keys currently being cancelled, and the last cancel result/error message.
+  const cancelling = useSignal<Record<string, boolean>>({});
+  const cancelMsg = useSignal("");
 
   async function load() {
     const r = await fetch("/api/signals?limit=100");
@@ -134,6 +142,9 @@ export default function SignalFeed({ testnet = true }: Props) {
         price: o.price,
         size: o.size,
         at: o.initiatedAt,
+        pairId: o.pairId,
+        idx: null,
+        orderId: o.orderId,
       }));
       const limits: InflightOrder[] = (a.openOrders ?? []).map((o) => ({
         key: `l-${o.pairId}-${o.idx}`,
@@ -144,11 +155,53 @@ export default function SignalFeed({ testnet = true }: Props) {
         price: o.triggerPx,
         size: o.size,
         at: o.createdAt,
+        pairId: o.pairId,
+        idx: o.idx,
+        orderId: null,
       }));
       inflight.value = [...market, ...limits].sort((x, y) => y.at - x.at);
       inflightStale.value = a.ok ? !a.ok.openOrders || !a.ok.pendingOrders : false;
     } catch {
       // best-effort: leave the last view in place
+    }
+  }
+
+  /** The (pairId, idx) or initiatedTx needed to cancel; null if not cancellable here. */
+  function cancelTarget(o: InflightOrder) {
+    if (o.kind === "limit" && o.idx !== null) {
+      return { kind: "limit", pairId: o.pairId, idx: o.idx };
+    }
+    if (o.kind === "market" && o.orderId) {
+      return { kind: "market", action: o.type, orderId: o.orderId };
+    }
+    return null;
+  }
+
+  async function cancel(o: InflightOrder) {
+    const target = cancelTarget(o);
+    if (!target) {
+      cancelMsg.value = "This order can't be cancelled from here yet.";
+      return;
+    }
+    if (!globalThis.confirm(`Cancel this ${o.type} order on ${o.symbol}?`)) return;
+    cancelling.value = { ...cancelling.value, [o.key]: true };
+    cancelMsg.value = "";
+    try {
+      const r = await fetch("/api/orders/cancel", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(target),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error ?? "cancel failed");
+      cancelMsg.value = `Cancel submitted: ${short(d.txHash ?? "")}`;
+      await loadInflight();
+    } catch (e) {
+      cancelMsg.value = e instanceof Error ? e.message : String(e);
+    } finally {
+      const next = { ...cancelling.value };
+      delete next[o.key];
+      cancelling.value = next;
     }
   }
 
@@ -217,12 +270,13 @@ export default function SignalFeed({ testnet = true }: Props) {
       <div class="table-scroll accent-orange" style="max-height:228px;margin-top:8px">
         <table style="table-layout:fixed">
           <colgroup>
-            <col style="width:14%" />
-            <col style="width:11%" />
             <col style="width:13%" />
-            <col style="width:18%" />
-            <col style="width:16%" />
-            <col style="width:28%" />
+            <col style="width:10%" />
+            <col style="width:11%" />
+            <col style="width:15%" />
+            <col style="width:12%" />
+            <col style="width:17%" />
+            <col style="width:22%" />
           </colgroup>
           <thead>
             <tr>
@@ -232,31 +286,47 @@ export default function SignalFeed({ testnet = true }: Props) {
               <th>trigger / px</th>
               <th>size</th>
               <th>status</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
-            {inflight.value.map((o) => (
-              <tr key={o.key}>
-                <td>{o.symbol}</td>
-                <td>
-                  <span class={`badge ${o.side === "B" ? "long" : "short"}`}>
-                    {o.side === "B" ? "LONG" : "SHORT"}
-                  </span>
-                </td>
-                <td class="muted">{o.type}</td>
-                <td class="mono">{px(o.price)}</td>
-                <td class="mono">{sz(o.size)}</td>
-                <td>
-                  <span class={`badge ${o.kind === "limit" ? "resting" : "inflight"}`}>
-                    {o.kind === "limit" ? "resting" : "in flight"}
-                  </span>
-                </td>
-              </tr>
-            ))}
+            {inflight.value.map((o) => {
+              const busy = cancelling.value[o.key] === true;
+              const canCancel = cancelTarget(o) !== null;
+              return (
+                <tr key={o.key}>
+                  <td>{o.symbol}</td>
+                  <td>
+                    <span class={`badge ${o.side === "B" ? "long" : "short"}`}>
+                      {o.side === "B" ? "LONG" : "SHORT"}
+                    </span>
+                  </td>
+                  <td class="muted">{o.type}</td>
+                  <td class="mono">{px(o.price)}</td>
+                  <td class="mono">{sz(o.size)}</td>
+                  <td>
+                    <span class={`badge ${o.kind === "limit" ? "resting" : "inflight"}`}>
+                      {o.kind === "limit" ? "resting" : "in flight"}
+                    </span>
+                  </td>
+                  <td>
+                    <button
+                      type="button"
+                      class="danger compact"
+                      disabled={busy || !canCancel}
+                      title={canCancel ? "Cancel this order" : "Not cancellable yet"}
+                      onClick={() => cancel(o)}
+                    >
+                      {busy ? "Cancelling…" : "Cancel"}
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
             {inflight.value.length === 0
               ? (
                 <tr>
-                  <td colSpan={6} class="muted">
+                  <td colSpan={7} class="muted">
                     No orders in flight. Pending market orders and resting limit/stop orders appear
                     here.
                   </td>
@@ -266,6 +336,7 @@ export default function SignalFeed({ testnet = true }: Props) {
           </tbody>
         </table>
       </div>
+      {cancelMsg.value ? <p class="muted">{cancelMsg.value}</p> : null}
 
       <h4 style="margin-top:20px">Webhook calls</h4>
       <div class="table-scroll">

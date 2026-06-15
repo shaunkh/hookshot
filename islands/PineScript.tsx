@@ -264,9 +264,17 @@ export default function PineScript({ sizeUnit }: Props) {
             checked={sendClientId.value}
             onChange={(e) => (sendClientId.value = (e.target as HTMLInputElement).checked)}
           />
-          <span class="muted">Send clientId (dedupes retries)</span>
+          <span class="muted">Send clientId (recommended)</span>
         </label>
       </div>
+      {!sendClientId.value
+        ? (
+          <p class="muted">
+            ⚠ Without a clientId, two identical signals within 10s look like a duplicate and the
+            second is dropped — keep this on unless you have a reason not to.
+          </p>
+        )
+        : null}
 
       <h4>1. Allowlist TradingView</h4>
       <p class="muted">
