@@ -2,14 +2,14 @@
 
 **Catch every move.**
 
-Trade [Ostium](https://ostium.com) from any external tool - TradingView alerts,
-bots, scripts - by POSTing JSON **Signals** to a webhook URL. A hosted, multi-user
-app: sign in with your wallet, delegate trading to a server-held **trade-only**
-key, spin up webhooks, and watch signals execute live.
+Trade [Ostium](https://ostium.com) from any external tool - TradingView alerts, bots, scripts - by
+POSTing JSON **Signals** to a webhook URL. A hosted, multi-user app: sign in with your wallet,
+delegate trading to a server-held **trade-only** key, spin up webhooks, and watch signals execute
+live.
 
-**Your keys never touch the server.** The server holds one shared **Delegate** key
-that can open/close trades but **cannot withdraw funds** (Ostium gasless delegated
-mode). A breach can grief, not steal. See `docs/adr/0001-delegate-key-custody.md`.
+**Your keys never touch the server.** The server holds one shared **Delegate** key that can
+open/close trades but **cannot withdraw funds** (Ostium gasless delegated mode). A breach can grief,
+not steal. See `docs/adr/0001-delegate-key-custody.md`.
 
 ## Stack
 
@@ -27,16 +27,15 @@ cp .env.example .env            # then fill DELEGATE_PRIVATE_KEY + generate secr
 ```
 
 **Network:** **Arbitrum Sepolia testnet by default.** For Arbitrum One mainnet, set
-`OSTIUM_TESTNET=false` and point `ARBITRUM_RPC_URL` at a mainnet RPC. If
-`OSTIUM_TESTNET` is unset, the network is auto-detected from the RPC host (a
-`sepolia` host ⇒ testnet, else testnet). The chainId (421614 ↔ 42161), the Ostium
-subgraph, and the RPC + Pimlico defaults all follow the selected network.
+`OSTIUM_TESTNET=false` and point `ARBITRUM_RPC_URL` at a mainnet RPC. If `OSTIUM_TESTNET` is unset,
+the network is auto-detected from the RPC host (a `sepolia` host ⇒ testnet, else testnet). The
+chainId (421614 ↔ 42161), the Ostium subgraph, and the RPC + Pimlico defaults all follow the
+selected network.
 
 ## Run locally with Nix
 
-The flake provides a dev shell (Deno ≥ 2.8 + sqlite/openssl/git/jq) and one-shot
-`nix run` apps. Deno itself does the build (it manages its own deps); Nix just
-provides the toolchain.
+The flake provides a dev shell (Deno ≥ 2.8 + sqlite/openssl/git/jq) and one-shot `nix run` apps.
+Deno itself does the build (it manages its own deps); Nix just provides the toolchain.
 
 ```bash
 nix develop                     # drops you in a shell with deno, sqlite3, openssl, …
@@ -49,23 +48,25 @@ nix run .#build                 # produce _fresh/
 nix run .#serve                 # build + deno serve -A _fresh/server.js (PORT=8000)
 ```
 
-Without Nix, just install Deno ≥ 2.8 and run the `deno …` commands above
-(`deno task start` = `deno serve -A _fresh/server.js`).
+Without Nix, just install Deno ≥ 2.8 and run the `deno …` commands above (`deno task start` =
+`deno serve -A _fresh/server.js`).
 
-On boot the server runs DB migrations, starts the in-process execution worker, and
-logs the delegate **Safe address** (what users register via `setDelegate`).
+> **Easiest local run** — dev server with hot reload, reachable from your phone / other devices on
+> your LAN, no Docker or tunnel: `deno task dev --host`.
+
+On boot the server runs DB migrations, starts the in-process execution worker, and logs the delegate
+**Safe address** (what users register via `setDelegate`).
 
 ## Build & run the image (Docker)
 
-> **Run it locally** in Docker behind a public Cloudflare tunnel (so TradingView
-> can reach it): **[LOCAL_DEPLOY.md](LOCAL_DEPLOY.md)**.
-> **Deploy to a VPS** with a domain + auto-HTTPS: **[DEPLOY.md](DEPLOY.md)**.
+> **Run it locally** in Docker behind a public Cloudflare tunnel (so TradingView can reach it):
+> **[LOCAL_DEPLOY.md](LOCAL_DEPLOY.md)**. **Deploy to a VPS** with a domain + auto-HTTPS:
+> **[DEPLOY.md](DEPLOY.md)**.
 
-Images are built with Docker (the official Fresh path), not Nix: a hermetic Nix
-build can't run the networked `deno install` / `deno task build`, and vendoring
-Deno's npm cache as a fixed-output derivation has an unstable hash. So **Nix is for
-local dev; Docker builds the deployable image.** The `Dockerfile` runs
-`deno install` + `deno task build` and serves `_fresh/`.
+Images are built with Docker (the official Fresh path), not Nix: a hermetic Nix build can't run the
+networked `deno install` / `deno task build`, and vendoring Deno's npm cache as a fixed-output
+derivation has an unstable hash. So **Nix is for local dev; Docker builds the deployable image.**
+The `Dockerfile` runs `deno install` + `deno task build` and serves `_fresh/`.
 
 ```bash
 docker build --build-arg GIT_REVISION=$(git rev-parse HEAD) -t hookshot .
@@ -75,36 +76,35 @@ docker run --env-file .env -e DB_PATH=/data/app.db \
 #   curl localhost:8000/api/health  ->  {"ok":true,...}
 ```
 
-- **Secrets** are never baked into the image - pass them at runtime via `--env-file`
-  (or `-e`). The build only runs Vite and needs no secrets/RPC.
+- **Secrets** are never baked into the image - pass them at runtime via `--env-file` (or `-e`). The
+  build only runs Vite and needs no secrets/RPC.
 - **SQLite** persists on the named `hookshot-data` volume. The image defaults
-  `DB_PATH=/data/app.db`; the explicit `-e DB_PATH=/data/app.db` above guards
-  against a local `.env` that points `DB_PATH` at a relative path (which the
-  non-root container user can't create). Set `APP_ORIGIN` to your public https
-  URL in production so SIWE domains match and cookies are `Secure`.
+  `DB_PATH=/data/app.db`; the explicit `-e DB_PATH=/data/app.db` above guards against a local `.env`
+  that points `DB_PATH` at a relative path (which the non-root container user can't create). Set
+  `APP_ORIGIN` to your public https URL in production so SIWE domains match and cookies are
+  `Secure`.
 - Override the Deno version with `--build-arg DENO_VERSION=2.8.2`.
 
 ## How it works
 
-1. **Sign in** with your wallet (SIWE) - your login address *is* your Ostium trader address.
-2. **Delegate** once: from your wallet, approve USDC + `setDelegate(delegateSafe)`.
-   Until done, your webhooks can't trade. The server only ever stores your *address*.
-3. **Spin up a webhook** - get a URL + secret. Add the source IP(s) of your tool to
-   its allowlist (default is **closed to all IPs**), or flip it to allow-all.
-4. **POST signals.** Each is authenticated (URL id + body secret + IP), validated,
-   acknowledged fast (`202`), then executed asynchronously. Watch status live.
+1. **Sign in** with your wallet (SIWE) - your login address _is_ your Ostium trader address.
+2. **Delegate** once: from your wallet, approve USDC + `setDelegate(delegateSafe)`. Until done, your
+   webhooks can't trade. The server only ever stores your _address_.
+3. **Spin up a webhook** - get a URL + secret. Add the source IP(s) of your tool to its allowlist
+   (default is **closed to all IPs**), or flip it to allow-all.
+4. **POST signals.** Each is authenticated (URL id + body secret + IP), validated, acknowledged fast
+   (`202`), then executed asynchronously. Watch status live.
 
-Positions are **aggregated per pair + direction** in base-asset size; a partial
-close maps onto the underlying Ostium slots largest-first (`docs/adr/0002`).
+Positions are **aggregated per pair + direction** in base-asset size; a partial close maps onto the
+underlying Ostium slots largest-first (`docs/adr/0002`).
 
 ## Signal schema
 
-POST JSON to `https://<host>/h/<webhook-id>`. Every body carries `secret`, `symbol`
-(e.g. `"BTC/USD"`), `direction` (`"long"`|`"short"`), and an optional `clientId`
-(idempotency key). `size` is read in your configured **Size Unit** (base asset by
-default; USD-collateral or USD-notional in Settings). On **open** you may instead
-send `collateral` (USDC) to commit collateral directly, regardless of Size Unit -
-provide exactly one of `size` or `collateral`.
+POST JSON to `https://<host>/h/<webhook-id>`. Every body carries `secret`, `symbol` (e.g.
+`"BTC/USD"`), `direction` (`"long"`|`"short"`), and an optional `clientId` (idempotency key). `size`
+is read in your configured **Size Unit** (base asset by default; USD-collateral or USD-notional in
+Settings). On **open** you may instead send `collateral` (USDC) to commit collateral directly,
+regardless of Size Unit - provide exactly one of `size` or `collateral`.
 
 ```jsonc
 // open  (give EITHER "size" - in your Size Unit - OR "collateral" in USDC)
@@ -126,10 +126,9 @@ provide exactly one of `size` or `collateral`.
 { "secret":"whsec_…", "action":"cancel", "symbol":"BTC/USD", "direction":"long" }
 ```
 
-Unknown fields, bad decimals, unknown pairs, closed markets, sub-$5 notional, or
-over-max leverage are **rejected before any on-chain call** (visible in the dashboard).
-The dashboard's **Body Helper** generates ready-to-paste JSON + a TradingView
-alert-message template for each webhook.
+Unknown fields, bad decimals, unknown pairs, closed markets, sub-$5 notional, or over-max leverage
+are **rejected before any on-chain call** (visible in the dashboard). The dashboard's **Body
+Helper** generates ready-to-paste JSON + a TradingView alert-message template for each webhook.
 
 ## Verify locally (no real funds)
 
@@ -153,20 +152,21 @@ A real on-chain fill needs a funded trader that has delegated to the boot Safe.
 
 ## Known limitations
 
-- **`filled` = submitted on-chain, not settled.** A Signal is marked `filled` when
-  its txs are broadcast. An Ostium market order is *initiated* then filled/cancelled
-  by the oracle, so a submitted tx can still be cancelled (slippage/timeout).
-  Reconciling submitted → settled (polling `getOrders` past subgraph lag, plus a
-  distinct status) is future work; each leg's `txHash` is stored for verification.
-- **Crash mid-execution is fail-safe, not resumed.** A Signal interrupted while
-  `executing` may have broadcast some txs; on restart it is marked `failed
-  (needs review)` rather than blindly re-submitted (which could double a position).
-- **Single global worker.** Execution is serialised across all users; a slow RPC
-  affects everyone. Per-(user,pair) fairness is future work.
+- **`filled` = submitted on-chain, not settled.** A Signal is marked `filled` when its txs are
+  broadcast. An Ostium market order is _initiated_ then filled/cancelled by the oracle, so a
+  submitted tx can still be cancelled (slippage/timeout). Reconciling submitted → settled (polling
+  `getOrders` past subgraph lag, plus a distinct status) is future work; each leg's `txHash` is
+  stored for verification.
+- **Crash mid-execution is fail-safe, not resumed.** A Signal interrupted while `executing` may have
+  broadcast some txs; on restart it is marked `failed
+  (needs review)` rather than blindly
+  re-submitted (which could double a position).
+- **Single global worker.** Execution is serialised across all users; a slow RPC affects everyone.
+  Per-(user,pair) fairness is future work.
 
 ## Deploying behind a proxy
 
 The per-webhook IP allowlist relies on the source IP. Behind a reverse proxy, set
-`TRUSTED_PROXY_IPS` to the proxy's address(es) - only then is `X-Forwarded-For`
-honoured (otherwise it's spoofable). Set `APP_ORIGIN` to your https origin so SIWE
-domains match and session cookies are `Secure`.
+`TRUSTED_PROXY_IPS` to the proxy's address(es) - only then is `X-Forwarded-For` honoured (otherwise
+it's spoofable). Set `APP_ORIGIN` to your https origin so SIWE domains match and session cookies are
+`Secure`.

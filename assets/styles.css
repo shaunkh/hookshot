@@ -123,6 +123,33 @@ a:hover {
   color: #141414;
 }
 
+/* In-content tab buttons (e.g. the trade-helpers switcher). Share the `.tabs`
+ * segmented track; `.tab` overrides the default orange button look. */
+.tab {
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 6px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+.tab:hover {
+  background: var(--elevated);
+  color: var(--text);
+}
+.tab.active {
+  background: var(--orange);
+  color: #141414;
+  border-color: var(--orange);
+}
+.tab.active:hover {
+  background: var(--orange-press);
+  color: #141414;
+}
+
 h1 {
   font-size: 24px;
   line-height: 30px;

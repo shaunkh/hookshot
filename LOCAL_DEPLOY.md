@@ -11,14 +11,24 @@ For a permanent server deployment, see **[DEPLOY.md](DEPLOY.md)**.
 
 ## Prerequisites
 
-- **Docker** (with the `docker compose` plugin) — Docker Desktop on macOS/Windows.
-- **Nix** — provides the rest of the toolchain (`cloudflared`, `deno`, `openssl`,
-  `curl`, `sqlite`, `jq`) via the project's dev shell. Install below.
+**Docker** is required either way — it builds *and* serves the app (the build runs
+inside the image, so Deno/SQLite aren't needed on the host). Docker Desktop on
+macOS/Windows includes the `docker compose` plugin.
 
-### Install Nix (Determinate)
+For everything else, pick one:
 
-Use the [Determinate Nix installer](https://docs.determinate.systems/) — it enables
-flakes by default and is cleanly uninstallable:
+- **Docker + Nix** — Nix's dev shell provides the rest of the toolchain the steps
+  below use (`cloudflared`, `openssl`, `curl`, …). Best if you don't already have
+  these. See [Install Nix](#install-nix-optional) below.
+- **Docker + the tools yourself** — if **`cloudflared`** (the tunnel) and
+  **`openssl`** (to generate secrets) are already on your PATH, **Nix is optional** —
+  skip it and run the steps directly on your host.
+
+### Install Nix (optional)
+
+Only needed for the **Docker + Nix** path above. Use the
+[Determinate Nix installer](https://docs.determinate.systems/) — it enables flakes by
+default and is cleanly uninstallable:
 
 ```bash
 curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install
@@ -27,7 +37,7 @@ curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix 
 Open a **new terminal** afterwards, then enter the dev shell from the repo root:
 
 ```bash
-nix develop          # drops you into a shell with cloudflared, deno, openssl, curl, …
+nix develop          # drops you into a shell with cloudflared, openssl, curl, …
 ```
 
 Run the remaining steps from inside this shell. (Docker still runs on the host —
@@ -64,7 +74,7 @@ Leave `APP_ORIGIN` for now — you'll set it in step 3 once the tunnel gives you
 
 ## 2. Start the Cloudflare tunnel
 
-In its own terminal (also inside `nix develop`):
+In its own terminal (inside `nix develop` if you're using the Nix path):
 
 ```bash
 cloudflared tunnel --url http://localhost:8000
